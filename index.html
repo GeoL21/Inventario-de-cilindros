@@ -91,6 +91,21 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .aviso-serial.rojo{border-color:var(--rojo-linea);background:var(--rojo-suave);color:var(--rojo-txt);font-weight:600}
 .aviso-serial button{align-self:flex-start;border:0;background:#fff;color:var(--alerta-txt);border-radius:10px;min-height:40px;padding:0 12px;font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center}
 
+/* Instalar y siguiente */
+.instalar{background:var(--vino-suave);border:1px solid var(--vino-medio);border-radius:var(--radio);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.fila-inst{display:flex;align-items:center;gap:12px}
+.fila-inst img{width:48px;height:48px;border-radius:12px;flex:none}
+.fila-inst .txt{flex:1;min-width:0}
+.fila-inst b{display:block;font-size:16px;font-weight:800;color:var(--vino)}
+.fila-inst small{display:block;font-size:13px;color:var(--suave);line-height:1.35}
+.instalar .x{width:44px;height:44px;border:0;background:none;color:var(--suave);display:grid;place-items:center;border-radius:10px;flex:none}
+.instalar .btn{min-height:46px}
+.tira{display:flex;align-items:center;gap:10px;background:var(--vino-suave);border-radius:12px;padding:10px 12px;margin-bottom:14px}
+.tira .txt{flex:1;min-width:0}
+.tira b{display:block;font-size:13px;font-weight:800;color:var(--vino)}
+.tira small{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tira button{flex:none;min-height:44px;border-radius:10px;border:1.5px solid var(--vino);background:#fff;color:var(--vino);font-weight:800;font-size:14px;padding:0 12px;display:flex;align-items:center;gap:6px}
+
 /* Barra de guardar */
 .barra{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));z-index:4;display:flex;justify-content:center;pointer-events:none}
 .barra .dentro{width:100%;max-width:640px;padding:10px 16px;background:linear-gradient(to top,var(--fondo) 70%,rgba(244,241,242,0));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px;pointer-events:auto}
@@ -209,6 +224,15 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 
     <!-- Registrar -->
     <main id="vRegistrar" class="cuerpo">
+      <div id="bannerInstalar" class="instalar oculto">
+        <div class="fila-inst">
+          <img src="icon-192.png" alt="">
+          <div class="txt"><b>Instala la app</b><small>Ábrela desde la pantalla de inicio, sin la barra del navegador.</small></div>
+          <button id="cerrarInstalar" class="x" aria-label="Ahora no"><svg class="i s"><use href="#i-x"/></svg></button>
+        </div>
+        <button id="btnInstalarBanner" class="btn prin">Instalar</button>
+        <p id="instPasos" class="ayuda oculto"></p>
+      </div>
       <div class="tarjeta">
         <div class="campo">
           <span class="etq">Propietario</span>
@@ -230,6 +254,10 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
       </div>
 
       <div class="tarjeta">
+        <div id="tiraSiguiente" class="tira oculto">
+          <div class="txt"><b>Siguiente cilindro</b><small id="tiraTexto"></small></div>
+          <button id="btnTerminar" type="button"><svg class="i s"><use href="#i-check"/></svg>Terminar aquí</button>
+        </div>
         <div class="campo">
           <label class="etq" for="fSerial">Serial del cilindro</label>
           <input id="fSerial" class="entrada serial" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="OX45821" enterkeyhint="next">

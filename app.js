@@ -188,6 +188,7 @@ const S = {
   filtroEstado: 'todos',
   sincronizando: false,
   corrigiendo: null,
+  siguiente: false,     // el formulario quedó listo para otro cilindro igual
   repetidos: ls('ic_repetidos') || [],   // avisos de registros rechazados por repetidos
   sync: { estado: '', msg: '' }
 };
@@ -330,6 +331,7 @@ function pintarFormulario() {
   $('fGasOtro').classList.toggle('oculto', !S.otro.gas);
   pintarCapacidades();
   pintarContador();
+  pintarTiraSiguiente();
 }
 
 /** Capacidades ya usadas, las más frecuentes primero. */
@@ -545,6 +547,48 @@ function leerFormulario() {
   return r;
 }
 
+/** Borra el formulario. Con todo = false deja propietario, gas y capacidad. */
+function limpiarFormulario(todo) {
+  $('fSerial').value = '';
+  $('fPH').value = '';
+  $('fObs').value = '';
+  S.f.valvula = S.f.pintura = S.f.contenido = '';
+  if (todo) {
+    S.f.propietario = S.f.gas = '';
+    S.otro = { propietario: false, gas: false };
+    $('fPropietarioOtro').value = '';
+    $('fGasOtro').value = '';
+    $('fCapacidad').value = '';
+  }
+  S.copiado = '';
+  S.encontrado = null;
+  S.corrigiendo = null;
+  limpiarErrores();
+  $('avisoSerial').classList.add('oculto');
+  $('estadoPH').classList.add('oculto');
+  pintarFormulario();
+}
+
+/** Tras "Guardar y siguiente": muestra con qué datos sigue y cómo terminar. */
+function pintarTiraSiguiente() {
+  const tira = $('tiraSiguiente');
+  if (!S.siguiente) { tira.classList.add('oculto'); return; }
+  const prop = S.otro.propietario ? $('fPropietarioOtro').value : S.f.propietario;
+  const gas = S.otro.gas ? $('fGasOtro').value : S.f.gas;
+  $('tiraTexto').textContent = [prop, gas, $('fCapacidad').value.trim()].filter(Boolean).join(' · ');
+  tira.classList.remove('oculto');
+}
+
+/** No hay más cilindros: deja el formulario vacío sin guardar nada. */
+function terminar() {
+  S.siguiente = false;
+  limpiarFormulario(true);
+  pintarTiraSiguiente();
+  if (document.activeElement) document.activeElement.blur();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast(ico('check', 's') + 'Listo. Lo guardado ya quedó registrado.');
+}
+
 /** Guarda. Con "siguiente" deja propietario, gas y capacidad. */
 async function guardar(siguiente) {
   const r = leerFormulario();
@@ -588,27 +632,14 @@ async function guardar(siguiente) {
   toast(ico('check', 's') + (esCorreccion ? 'Corregido ' : 'Guardado ') + esc(r.serial) +
     (est === 'Vencida' ? ' · PH vencida' : ''));
 
-  // Limpiar
-  $('fSerial').value = '';
-  $('fPH').value = '';
-  $('fObs').value = '';
-  S.f.valvula = S.f.pintura = S.f.contenido = '';
-  if (!siguiente) {
-    S.f.propietario = S.f.gas = '';
-    S.otro = { propietario: false, gas: false };
-    $('fPropietarioOtro').value = '';
-    $('fGasOtro').value = '';
-    $('fCapacidad').value = '';
-  } else {
+  if (siguiente) {
     // Lo escrito en "Otra/Otro" pasa a ser un botón elegido
     if (S.otro.propietario) { S.f.propietario = r.propietario; S.otro.propietario = false; }
     if (S.otro.gas) { S.f.gas = r.gas; S.otro.gas = false; }
   }
-  S.copiado = '';
-  S.encontrado = null;
-  $('avisoSerial').classList.add('oculto');
-  $('estadoPH').classList.add('oculto');
-  pintarFormulario();
+  limpiarFormulario(!siguiente);
+  S.siguiente = siguiente;
+  pintarTiraSiguiente();
   if (siguiente) {
     $('fSerial').focus({ preventScroll: true });
     $('fSerial').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1026,20 +1057,61 @@ function eventos() {
     if (document.visibilityState === 'visible') sincronizar();
   });
 
-  // Botón de instalar
-  let aviso = null;
+  $('btnTerminar').onclick = terminar;
+
+  // Instalar la app
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
-    aviso = e;
-    $('btnInstalar').classList.remove('oculto');
+    S.avisoInstalar = e;
+    pintarInstalar();
   });
-  $('btnInstalar').onclick = async function() {
-    if (!aviso) return;
-    aviso.prompt();
-    await aviso.userChoice;
-    aviso = null;
-    $('btnInstalar').classList.add('oculto');
+  window.addEventListener('appinstalled', function() {
+    S.avisoInstalar = null;
+    S.instalada = true;
+    pintarInstalar();
+    toast(ico('check', 's') + 'App instalada');
+  });
+  $('btnInstalar').onclick = instalar;
+  $('btnInstalarBanner').onclick = instalar;
+  $('cerrarInstalar').onclick = function() {
+    ls('ic_instalar_cerrado', Date.now());
+    pintarInstalar();
   };
+  // Si el navegador no ofrece el botón, igual se muestran las instrucciones
+  setTimeout(function() { S.esperoInstalar = true; pintarInstalar(); }, 2500);
+}
+
+function estaInstalada() {
+  return S.instalada || window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+
+function pintarInstalar() {
+  const cerrado = ls('ic_instalar_cerrado');
+  const oculto = estaInstalada() || (cerrado && Date.now() - cerrado < 3 * 86400000) ||
+    (!S.avisoInstalar && !S.esperoInstalar);
+  $('bannerInstalar').classList.toggle('oculto', !!oculto);
+  $('btnInstalar').classList.toggle('oculto', estaInstalada() || !S.avisoInstalar);
+  $('instPasos').classList.add('oculto');
+  $('btnInstalarBanner').innerHTML = S.avisoInstalar ? ico('instalar', 's') + 'Instalar' : 'Cómo instalar';
+}
+
+async function instalar() {
+  if (S.avisoInstalar) {
+    const e = S.avisoInstalar;
+    e.prompt();
+    const r = await e.userChoice;
+    if (r && r.outcome === 'accepted') S.instalada = true;
+    S.avisoInstalar = null;
+    pintarInstalar();
+    return;
+  }
+  // Sin aviso del navegador: explicar cómo hacerlo a mano
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  $('instPasos').innerHTML = ios
+    ? 'En Safari toca <b>Compartir</b> y luego <b>Agregar a inicio</b>.'
+    : 'Toca el menú <b>⋮</b> de Chrome (arriba a la derecha) y luego <b>Instalar app</b> o <b>Agregar a la pantalla principal</b>.';
+  $('instPasos').classList.remove('oculto');
 }
 
 
