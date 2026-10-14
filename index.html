@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#79022C">
+<meta name="description" content="Inventario de cilindros de gases medicinales por sede. Funciona sin señal.">
+<title>Inventario de cilindros</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+@font-face{font-family:"Plus Jakarta Sans";src:url("PlusJakartaSans.ttf") format("truetype");font-weight:200 800;font-display:swap}
+:root{
+  --vino:#79022C;--vino-osc:#5A0121;--vino-suave:#F6E9EE;--vino-medio:#EADCE1;
+  --fondo:#F4F1F2;--tarjeta:#fff;--tinta:#1F2937;--suave:#4B5563;--linea:#E0CDD3;--linea-suave:#EFE4E8;
+  --ok:#1C7A4C;--ok-txt:#17663F;--ok-suave:#E5F3EC;
+  --alerta:#A8540A;--alerta-txt:#8A4508;--alerta-suave:#FDF0DF;--alerta-linea:#F2D3A8;
+  --rojo:#B3261E;--rojo-txt:#9B1F18;--rojo-suave:#FBE9E7;--rojo-linea:#F1C3BE;
+  --radio:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--fondo);color:var(--tinta);
+  font:16px/1.45 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100dvh;overscroll-behavior-y:contain}
+h1,h2,h3,p{margin:0}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #C98AA3;outline-offset:2px}
+.oculto{display:none!important}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i.s{width:16px;height:16px}.i.l{width:40px;height:40px;stroke-width:1.6}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+#app{max-width:640px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+
+/* Encabezado */
+.cab{position:sticky;top:0;z-index:5;background:var(--vino);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:10px}
+.cab .logo{width:44px;height:44px;border-radius:50%;background:#fff;flex:none;object-fit:cover}
+.cab .tit{flex:1;min-width:0}
+.cab h1{font-size:18px;font-weight:800;line-height:1.2}
+.cab small{display:block;font-size:13px;opacity:.9;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-cab{min-width:44px;height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;font-size:14px;font-weight:700;flex:none}
+
+/* Franja de sincronización */
+.franja{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;font-weight:600;line-height:1.35}
+.franja.ok{background:var(--ok-suave);color:var(--ok-txt)}
+.franja.espera{background:var(--alerta-suave);color:var(--alerta-txt)}
+.franja.sube{background:var(--vino-suave);color:var(--vino)}
+.franja.error{background:var(--rojo-suave);color:var(--rojo-txt)}
+.franja span{flex:1}
+.franja button{border:0;background:rgba(0,0,0,.07);color:inherit;font-weight:700;font-size:13px;border-radius:8px;min-height:36px;padding:0 10px}
+
+/* Cuerpo */
+.cuerpo{padding:14px 16px calc(100px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);padding:14px}
+.campo{display:flex;flex-direction:column;gap:8px}
+.campo+.campo{margin-top:16px}
+.etq{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:14px;font-weight:700;color:var(--tinta)}
+.etq em{font-style:normal;font-weight:600;font-size:12px;color:var(--suave)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--linea);background:#fff;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .12s,border-color .12s}
+.chip[aria-pressed="true"]{background:var(--vino);border-color:var(--vino);color:#fff;font-weight:700}
+.chip.mas{border-style:dashed;color:var(--suave)}
+.chip.mini{min-height:38px;padding:0 12px;font-size:14px}
+.chip .n{font-size:12px;font-weight:800;background:rgba(0,0,0,.08);border-radius:999px;padding:1px 7px}
+.chip[aria-pressed="true"] .n{background:rgba(255,255,255,.22)}
+.dos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dos .chip{justify-content:center;min-height:52px;font-size:16px}
+.tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tres .chip{justify-content:center;padding:0 6px}
+
+.entrada{width:100%;min-height:52px;border:1.5px solid var(--linea);border-radius:12px;background:#fff;padding:12px 14px;font-size:18px;font-weight:600;outline:0}
+.entrada:focus{border-color:var(--vino);box-shadow:0 0 0 3px var(--vino-medio)}
+.entrada.serial{text-transform:uppercase;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.entrada.mal{border-color:var(--rojo)}
+.entrada::placeholder,.buscar input::placeholder{text-transform:none;letter-spacing:0;color:#9CA3AF;font-weight:500}
+textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
+.ayuda{font-size:13px;color:var(--suave)}
+.error-campo{font-size:13px;font-weight:700;color:var(--rojo-txt);display:flex;gap:6px;align-items:center}
+
+.estado{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;border-radius:999px;padding:4px 10px;width:max-content;max-width:100%}
+.estado.ok{background:var(--ok-suave);color:var(--ok-txt)}
+.estado.alerta{background:var(--alerta-suave);color:var(--alerta-txt)}
+.estado.rojo{background:var(--rojo-suave);color:var(--rojo-txt)}
+.estado.vino{background:var(--vino-suave);color:var(--vino)}
+
+.aviso-serial{border:1px solid var(--alerta-linea);background:var(--alerta-suave);color:var(--alerta-txt);border-radius:12px;padding:10px 12px;font-size:14px;display:flex;flex-direction:column;gap:8px}
+.aviso-serial b{font-weight:800}
+.aviso-serial.rojo{border-color:var(--rojo-linea);background:var(--rojo-suave);color:var(--rojo-txt);font-weight:600}
+.aviso-serial button{align-self:flex-start;border:0;background:#fff;color:var(--alerta-txt);border-radius:10px;min-height:40px;padding:0 12px;font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center}
+
+/* Barra de guardar */
+.barra{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));z-index:4;display:flex;justify-content:center;pointer-events:none}
+.barra .dentro{width:100%;max-width:640px;padding:10px 16px;background:linear-gradient(to top,var(--fondo) 70%,rgba(244,241,242,0));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px;pointer-events:auto}
+.btn{min-height:52px;border-radius:14px;border:1.5px solid var(--vino);background:#fff;color:var(--vino);font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px}
+.btn.prin{background:var(--vino);color:#fff}
+.btn.prin:active{background:var(--vino-osc)}
+.btn:active{transform:scale(.98)}
+
+/* Navegación inferior */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom);display:flex;justify-content:center}
+.nav .dentro{width:100%;max-width:640px;display:grid;grid-template-columns:1fr 1fr}
+.nav button{border:0;background:none;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;font-weight:700;color:var(--suave);position:relative}
+.nav button[aria-current="page"]{color:var(--vino)}
+.nav button[aria-current="page"]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--vino)}
+
+/* Inventario */
+.buscar{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--linea);border-radius:12px;padding:0 6px 0 12px;min-height:52px;color:var(--suave)}
+.buscar input{border:0;outline:0;flex:1;font-size:16px;font-weight:600;background:transparent;min-width:0;padding:12px 0;text-transform:uppercase;color:var(--tinta)}
+.buscar button{width:40px;height:40px;border:0;background:none;color:var(--suave);display:grid;place-items:center;border-radius:10px}
+.scroll{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 2px}
+.scroll::-webkit-scrollbar{display:none}
+.scroll .chip{flex:none;white-space:nowrap}
+.resumen{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.cifra{border:1px solid var(--linea);background:#fff;border-radius:12px;padding:8px 10px}
+.cifra b{display:block;font-size:20px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+.cifra span{font-size:11px;font-weight:700;color:var(--suave)}
+.cifra.rojo{background:var(--rojo-suave);border-color:var(--rojo-linea);color:var(--rojo-txt)}
+.cifra.rojo span{color:inherit}
+.lista{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden}
+.fila{display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:none;width:100%;text-align:left;min-height:64px}
+.fila+.fila{border-top:1px solid var(--linea-suave)}
+.fila:active{background:var(--vino-suave)}
+.fila .txt{flex:1;min-width:0}
+.fila .txt b{display:block;font-size:16px;font-weight:800;letter-spacing:.03em}
+.fila .txt small{display:block;font-size:13px;color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila .der{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+.vacio{text-align:center;padding:28px 16px;color:var(--suave);display:flex;flex-direction:column;align-items:center;gap:8px}
+.vacio b{color:var(--tinta);font-size:16px}
+
+/* Pantallas de acceso y turno */
+.pantalla{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))}
+.pantalla .logo-g{width:96px;height:96px;border-radius:50%;align-self:center;border:3px solid var(--vino-medio)}
+.pantalla h2{font-size:22px;font-weight:800;text-align:center;color:var(--vino)}
+.pantalla p.sub{text-align:center;color:var(--suave);font-size:15px}
+
+/* Avisos flotantes */
+.toast{position:fixed;left:16px;right:16px;bottom:calc(140px + env(safe-area-inset-bottom));z-index:9;display:flex;justify-content:center;pointer-events:none}
+.toast div{background:#1F2937;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:center;max-width:560px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:sube .2s ease-out}
+@keyframes sube{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-alerta" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-nube" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+  <symbol id="i-sinred" viewBox="0 0 24 24"><path d="m2 2 20 20"/><path d="M5.78 5.78A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.31-.19"/><path d="M21.53 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7 7 0 0 0 10 5.07"/></symbol>
+  <symbol id="i-refrescar" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-buscar" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-editar" viewBox="0 0 24 24"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></symbol>
+  <symbol id="i-lista" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-registrar" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14h6M12 11v6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-candado" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-sede" viewBox="0 0 24 24"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-instalar" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-cilindro" viewBox="0 0 24 24"><path d="M10 2h4M12 2v3"/><rect x="7" y="5" width="10" height="17" rx="4"/><path d="M7 11h10"/></symbol>
+</svg>
+
+<div id="app">
+
+  <!-- Código de acceso -->
+  <section id="vAcceso" class="pantalla oculto" aria-labelledby="tAcceso">
+    <img class="logo-g" src="logo.jpg" alt="Clínica Reina Catalina">
+    <h2 id="tAcceso">Inventario de cilindros</h2>
+    <p class="sub">Escribe el código de acceso del departamento.</p>
+    <div class="campo">
+      <label class="etq" for="codigoAcceso">Código de acceso</label>
+      <input id="codigoAcceso" class="entrada" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+      <p id="avisoAcceso" class="error-campo" role="alert"></p>
+    </div>
+    <button id="btnEntrar" class="btn prin"><svg class="i"><use href="#i-candado"/></svg>Entrar</button>
+  </section>
+
+  <!-- Sede y técnico -->
+  <section id="vTurno" class="pantalla oculto" aria-labelledby="tTurno">
+    <img class="logo-g" src="logo.jpg" alt="Clínica Reina Catalina">
+    <h2 id="tTurno">¿Dónde y quién registra?</h2>
+    <p class="sub">Se recuerda en este celular. Puedes cambiarlo cuando quieras.</p>
+    <div class="campo">
+      <span class="etq">Sede</span>
+      <div id="turnoSedes" class="dos" role="group" aria-label="Sede"></div>
+    </div>
+    <div class="campo">
+      <span class="etq">Técnico</span>
+      <div id="turnoTecnicos" class="chips" role="group" aria-label="Técnico"></div>
+      <p class="ayuda" id="turnoAyuda">Elige primero la sede.</p>
+    </div>
+    <button id="btnTurno" class="btn prin"><svg class="i"><use href="#i-check"/></svg>Empezar</button>
+  </section>
+
+  <!-- App principal -->
+  <div id="vPrincipal" class="oculto" style="display:flex;flex-direction:column;flex:1">
+    <header class="cab">
+      <img class="logo" src="logo.jpg" alt="">
+      <div class="tit">
+        <h1>Inventario de cilindros</h1>
+        <small id="cabTurno"></small>
+      </div>
+      <button id="btnInstalar" class="btn-cab oculto" aria-label="Instalar app"><svg class="i"><use href="#i-instalar"/></svg></button>
+      <button id="btnCambiarTurno" class="btn-cab" aria-label="Cambiar sede o técnico"><svg class="i"><use href="#i-editar"/></svg></button>
+    </header>
+    <div id="franja" class="franja oculto" role="status"></div>
+
+    <!-- Registrar -->
+    <main id="vRegistrar" class="cuerpo">
+      <div class="tarjeta">
+        <div class="campo">
+          <span class="etq">Propietario</span>
+          <div id="fPropietario" class="chips" role="group" aria-label="Propietario"></div>
+          <input id="fPropietarioOtro" class="entrada oculto" placeholder="Nombre de la empresa" aria-label="Otra empresa" autocapitalize="words">
+          <p class="error-campo oculto" data-error="propietario"></p>
+        </div>
+        <div class="campo">
+          <span class="etq">Gas</span>
+          <div id="fGas" class="chips" role="group" aria-label="Gas"></div>
+          <input id="fGasOtro" class="entrada oculto" placeholder="Nombre del gas" aria-label="Otro gas" autocapitalize="sentences">
+          <p class="error-campo oculto" data-error="gas"></p>
+        </div>
+        <div class="campo">
+          <label class="etq" for="fCapacidad">Capacidad <em>opcional</em></label>
+          <input id="fCapacidad" class="entrada" placeholder="6 m³" autocomplete="off">
+          <div id="fCapacidadUsadas" class="chips"></div>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="campo">
+          <label class="etq" for="fSerial">Serial del cilindro</label>
+          <input id="fSerial" class="entrada serial" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="OX45821" enterkeyhint="next">
+          <p class="error-campo oculto" data-error="serial"></p>
+          <div id="avisoSerial" class="aviso-serial oculto" role="status"></div>
+        </div>
+        <div class="campo">
+          <label class="etq" for="fPH">Prueba hidrostática <em>mes/año</em></label>
+          <input id="fPH" class="entrada" inputmode="numeric" autocomplete="off" placeholder="03/2024" maxlength="7" enterkeyhint="done">
+          <p class="ayuda">Escribe 0324 o 032024 y queda 03/2024.</p>
+          <p class="error-campo oculto" data-error="ph"></p>
+          <span id="estadoPH" class="estado oculto"></span>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="campo">
+          <span class="etq">Válvula</span>
+          <div id="fValvula" class="dos" role="group" aria-label="Válvula"></div>
+          <p class="error-campo oculto" data-error="valvula"></p>
+        </div>
+        <div class="campo">
+          <span class="etq">Pintura</span>
+          <div id="fPintura" class="tres" role="group" aria-label="Pintura"></div>
+          <p class="error-campo oculto" data-error="pintura"></p>
+        </div>
+        <div class="campo">
+          <span class="etq">Contenido</span>
+          <div id="fContenido" class="dos" role="group" aria-label="Contenido"></div>
+          <p class="error-campo oculto" data-error="contenido"></p>
+        </div>
+        <div class="campo">
+          <label class="etq" for="fObs">Observación <em>opcional</em></label>
+          <textarea id="fObs" class="entrada" placeholder="Golpe leve en el cuello" autocapitalize="sentences"></textarea>
+        </div>
+      </div>
+      <p class="ayuda" style="text-align:center" id="contadorHoy"></p>
+    </main>
+
+    <!-- Inventario -->
+    <main id="vInventario" class="cuerpo oculto">
+      <label class="buscar">
+        <svg class="i"><use href="#i-buscar"/></svg>
+        <span class="sr">Buscar serial</span>
+        <input id="buscar" placeholder="Buscar serial" autocapitalize="characters" autocomplete="off" spellcheck="false">
+        <button id="limpiarBuscar" class="oculto" aria-label="Borrar búsqueda"><svg class="i"><use href="#i-x"/></svg></button>
+      </label>
+      <div id="filtroSede" class="scroll" role="group" aria-label="Sede"></div>
+      <div id="resumen" class="resumen"></div>
+      <div id="filtroEstado" class="scroll" role="group" aria-label="Filtro"></div>
+      <div id="lista" class="lista"></div>
+    </main>
+
+    <div id="barraGuardar" class="barra">
+      <div class="dentro">
+        <button id="btnGuardar" class="btn">Guardar</button>
+        <button id="btnSiguiente" class="btn prin"><svg class="i"><use href="#i-check"/></svg>Guardar y siguiente</button>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Secciones">
+      <div class="dentro">
+        <button id="navRegistrar" aria-current="page"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
+        <button id="navInventario"><svg class="i"><use href="#i-lista"/></svg>Inventario</button>
+      </div>
+    </nav>
+  </div>
+</div>
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
