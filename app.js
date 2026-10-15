@@ -189,6 +189,7 @@ const S = {
   sincronizando: false,
   corrigiendo: null,
   filtroGas: '',
+  filtroProp: '',
   siguiente: false,     // el formulario quedó listo para otro cilindro igual
   repetidos: ls('ic_repetidos') || [],   // avisos de registros rechazados por repetidos
   sync: { estado: '', msg: '' }
@@ -762,10 +763,32 @@ async function descartarPrimero() {
 function pintarInventario() {
   const sedes = S.cfg.sedes;
   const todo = inventarioCompleto();
-  const deSede = todo.filter(function(c) { return !S.filtroSede || c.sede === S.filtroSede; });
+
+  // Propietarios que hay en el inventario (los de la clínica primero)
+  const props = [];
+  todo.forEach(function(c) {
+    if (c.propietario && !props.some(function(p) { return normal(p) === normal(c.propietario); })) props.push(c.propietario);
+  });
+  props.sort(function(a, b) {
+    const ia = S.cfg.propietarios.findIndex(function(p) { return normal(p) === normal(a); });
+    const ib = S.cfg.propietarios.findIndex(function(p) { return normal(p) === normal(b); });
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+  if (S.filtroProp && !props.some(function(p) { return normal(p) === normal(S.filtroProp); })) S.filtroProp = '';
+  const esDelProp = function(c) { return !S.filtroProp || normal(c.propietario) === normal(S.filtroProp); };
+  const esDeSede = function(c) { return !S.filtroSede || c.sede === S.filtroSede; };
+
+  $('filtroProp').innerHTML = [''].concat(props).map(function(p) {
+    const n = todo.filter(function(c) { return esDeSede(c) && (!p || normal(c.propietario) === normal(p)); }).length;
+    return '<button type="button" class="chip mini" data-prop="' + esc(p) + '" aria-pressed="' +
+      (normal(S.filtroProp) === normal(p)) + '">' + esc(p || 'Todos los propietarios') +
+      ' <span class="n">' + n + '</span></button>';
+  }).join('');
+
+  const deSede = todo.filter(function(c) { return esDeSede(c) && esDelProp(c); });
 
   $('filtroSede').innerHTML = [''].concat(sedes).map(function(s) {
-    const n = todo.filter(function(c) { return !s || c.sede === s; }).length;
+    const n = todo.filter(function(c) { return esDelProp(c) && (!s || c.sede === s); }).length;
     return '<button type="button" class="chip mini" data-sede="' + esc(s) + '" aria-pressed="' +
       (S.filtroSede === s) + '">' + esc(s || 'Todas') + ' <span class="n">' + n + '</span></button>';
   }).join('');
@@ -1082,6 +1105,12 @@ function eventos() {
     const s = e.target.closest('[data-sede]');
     const est = e.target.closest('[data-estado]');
     const gas = e.target.closest('[data-gas]');
+    const prop = e.target.closest('[data-prop]');
+    if (prop) {
+      S.filtroProp = prop.dataset.prop;
+      pintarInventario();
+      return;
+    }
     if (gas) {
       S.filtroGas = normal(S.filtroGas) === normal(gas.dataset.gas) ? '' : gas.dataset.gas;
       pintarInventario();
