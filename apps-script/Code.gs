@@ -147,6 +147,15 @@ function estadoPH(vence) {
   return 'Vigente';
 }
 
+/** Fórmula para que el estado de la PH se recalcule solo cada día. */
+function formulaEstado(fila) {
+  const g = 'G' + fila;
+  const fin = 'DATE(VALUE(RIGHT(' + g + ',4)),VALUE(LEFT(' + g + ',2))+1,1)';
+  return '=IF(' + g + '="","",IF(' + fin + '<=TODAY(),"Vencida",IF(' + fin +
+    '<=EDATE(TODAY(),3),"Por vencer","Vigente")))';
+}
+
+
 /***********************
  * REGISTRAR
  ***********************/
@@ -235,7 +244,7 @@ function registrar(r, cfg) {
       inv.getRange(fila, 15).setValue(cuenta + 1);
     } else {
       inv.getRange(fila, 1, 1, 7).setValues([[serial, r.sede, r.propietario, r.gas, capacidad, ph, vence]]);
-      // La columna H (Estado PH) la calcula una sola fórmula en H1: no se escribe aquí
+      inv.getRange(fila, 8).setFormula(formulaEstado(fila));
       inv.getRange(fila, 9, 1, 8).setValues([[
         r.valvula, r.pintura, r.contenido, obs, r.tecnico, fecha, cuenta + 1, r.id
       ]]);
