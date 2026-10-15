@@ -9,7 +9,7 @@
  * VERSION para que los celulares renueven la copia.
  *****************************************************************/
 
-const VERSION = 'inv-cilindros-v5';
+const VERSION = 'inv-cilindros-v6';
 
 const ARCHIVOS = [
   './',
@@ -27,7 +27,10 @@ self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(VERSION)
       .then(function(cache) {
-        return cache.addAll(ARCHIVOS).then(function() {
+        // cache: 'reload' evita copiar archivos viejos guardados por el navegador
+        return cache.addAll(ARCHIVOS.map(function(url) {
+          return new Request(url, { cache: 'reload' });
+        })).then(function() {
           // La letra es opcional: si falta, la app usa la del celular
           return cache.add('PlusJakartaSans.ttf').catch(function() {});
         });
@@ -62,7 +65,8 @@ self.addEventListener('fetch', function(event) {
   event.respondWith(
     caches.open(VERSION).then(function(cache) {
 
-      const deLaRed = fetch(peticion).then(function(respuesta) {
+      // no-cache: siempre pregunta a GitHub si hay versión nueva
+      const deLaRed = fetch(peticion, { cache: 'no-cache' }).then(function(respuesta) {
         if (respuesta && respuesta.ok) {
           cache.put(peticion, respuesta.clone());
         }

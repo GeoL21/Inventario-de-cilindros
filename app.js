@@ -641,6 +641,7 @@ async function guardar(siguiente) {
   limpiarFormulario(!siguiente);
   S.siguiente = siguiente;
   pintarTiraSiguiente();
+  if (S.versionNueva) { setTimeout(recargarSiSePuede, 1500); }
   if (siguiente) {
     $('fSerial').focus({ preventScroll: true });
     $('fSerial').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1181,8 +1182,29 @@ async function iniciar() {
   if (codigoAcceso()) sincronizar();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function() { /* nada */ });
+    const yaHabia = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then(function(reg) {
+      // Revisa si hay versión nueva cada vez que se vuelve a la app
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') reg.update().catch(function() {});
+      });
+    }).catch(function() { /* nada */ });
+    // Llegó una versión nueva: recarga sola si no hay un registro a medias
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (!yaHabia) return;
+      S.versionNueva = true;
+      recargarSiSePuede();
+    });
   }
+}
+
+/** Recarga la app para usar la versión nueva, sin perder lo que se está escribiendo. */
+function recargarSiSePuede() {
+  if (!S.versionNueva) return;
+  const aMedias = $('fSerial').value.trim() || $('fPH').value.trim() || $('fObs').value.trim() || S.corrigiendo;
+  if (aMedias) return;
+  S.versionNueva = false;
+  location.reload();
 }
 
 iniciar();
