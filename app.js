@@ -188,6 +188,7 @@ const S = {
   filtroEstado: 'todos',
   sincronizando: false,
   corrigiendo: null,
+  filtroGas: '',
   siguiente: false,     // el formulario quedó listo para otro cilindro igual
   repetidos: ls('ic_repetidos') || [],   // avisos de registros rechazados por repetidos
   sync: { estado: '', msg: '' }
@@ -784,15 +785,26 @@ function pintarInventario() {
     '<div class="cifra"><b>' + cuenta.vacio + '</b><span>Vacíos</span></div>' +
     '<div class="cifra' + (cuenta.vencida ? ' rojo' : '') + '"><b>' + cuenta.vencida + '</b><span>PH vencida</span></div>';
 
-  const filtros = [['todos', 'Todos'], ['lleno', 'Llenos'], ['vacio', 'Vacíos'], ['vencida', 'PH vencida'], ['porvencer', 'Por vencer']];
+  pintarPorGas(conEstado);
+
+  // Lo que sigue (filtros y lista) respeta el gas elegido
+  const deGas = conEstado.filter(function(c) { return !S.filtroGas || normal(c.gas) === normal(S.filtroGas); });
+  const cuentaGas = {
+    todos: deGas.length,
+    lleno: deGas.filter(function(c) { return normal(c.contenido) === 'lleno'; }).length,
+    vacio: deGas.filter(function(c) { return normal(c.contenido) === 'vacio'; }).length,
+    vencida: deGas.filter(function(c) { return c.est === 'Vencida'; }).length,
+    porvencer: deGas.filter(function(c) { return c.est === 'Por vencer'; }).length
+  };
+  const filtros = [['todos', S.filtroGas ? 'Todos los de ' + S.filtroGas : 'Todos'], ['lleno', 'Llenos'], ['vacio', 'Vacíos'], ['vencida', 'PH vencida'], ['porvencer', 'Por vencer']];
   $('filtroEstado').innerHTML = filtros.map(function(f) {
     return '<button type="button" class="chip mini" data-estado="' + f[0] + '" aria-pressed="' +
-      (S.filtroEstado === f[0]) + '">' + f[1] + ' <span class="n">' + cuenta[f[0]] + '</span></button>';
+      (S.filtroEstado === f[0]) + '">' + esc(f[1]) + ' <span class="n">' + cuentaGas[f[0]] + '</span></button>';
   }).join('');
 
   const q = $('buscar').value.trim().toUpperCase();
   $('limpiarBuscar').classList.toggle('oculto', !q);
-  const lista = conEstado.filter(function(c) {
+  const lista = deGas.filter(function(c) {
     if (q && String(c.serial).toUpperCase().indexOf(q) < 0) return false;
     switch (S.filtroEstado) {
       case 'lleno': return normal(c.contenido) === 'lleno';
@@ -823,6 +835,36 @@ function pintarInventario() {
   }).join('') + (lista.length > 300
     ? '<p class="ayuda" style="padding:12px 14px">Mostrando 300 de ' + lista.length + '. Busca por serial para ver los demás.</p>'
     : '');
+}
+
+
+/** Cantidad de cilindros por gas (total, llenos y vacíos) de la sede elegida. */
+function pintarPorGas(cilindros) {
+  const grupos = {};
+  cilindros.forEach(function(c) {
+    const k = normal(c.gas) || '-';
+    if (!grupos[k]) grupos[k] = { gas: c.gas || 'Sin gas', total: 0, lleno: 0, vacio: 0 };
+    const g = grupos[k];
+    g.total++;
+    if (normal(c.contenido) === 'lleno') g.lleno++;
+    if (normal(c.contenido) === 'vacio') g.vacio++;
+  });
+  const lista = Object.keys(grupos).map(function(k) { return grupos[k]; })
+    .sort(function(a, b) { return b.total - a.total || a.gas.localeCompare(b.gas); });
+  if (S.filtroGas && !grupos[normal(S.filtroGas)]) S.filtroGas = '';
+
+  const caja = $('porGas');
+  if (!lista.length) { caja.classList.add('oculto'); return; }
+  caja.classList.remove('oculto');
+  caja.innerHTML = '<div class="tit-gas"><b>Por gas</b><small>Toca un gas para ver sus cilindros</small></div>' +
+    lista.map(function(g) {
+      const activo = S.filtroGas && normal(S.filtroGas) === normal(g.gas);
+      return '<button type="button" class="gas" data-gas="' + esc(g.gas) + '" aria-pressed="' + !!activo + '">' +
+        '<span class="nom">' + esc(g.gas) + '</span>' +
+        '<span class="det">' + g.lleno + (g.lleno === 1 ? ' lleno' : ' llenos') + ' · ' +
+        g.vacio + (g.vacio === 1 ? ' vacío' : ' vacíos') + '</span>' +
+        '<b class="tot">' + g.total + '</b></button>';
+    }).join('');
 }
 
 
@@ -1038,6 +1080,12 @@ function eventos() {
   $('vInventario').addEventListener('click', function(e) {
     const s = e.target.closest('[data-sede]');
     const est = e.target.closest('[data-estado]');
+    const gas = e.target.closest('[data-gas]');
+    if (gas) {
+      S.filtroGas = normal(S.filtroGas) === normal(gas.dataset.gas) ? '' : gas.dataset.gas;
+      pintarInventario();
+      return;
+    }
     const fila = e.target.closest('[data-serial]');
     if (s) { S.filtroSede = s.dataset.sede; pintarInventario(); }
     if (est) { S.filtroEstado = est.dataset.estado; pintarInventario(); }
