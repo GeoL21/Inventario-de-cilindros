@@ -168,6 +168,41 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(140px + env(safe-area-inset-bottom));z-index:9;display:flex;justify-content:center;pointer-events:none}
 .toast div{background:#1F2937;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:center;max-width:560px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:sube .2s ease-out}
 @keyframes sube{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+/* PC: pantalla completa (desde 1024 px) */
+@media (min-width:1024px){
+  #app{max-width:none}
+  .pantalla{width:100%;max-width:520px;margin:0 auto}
+  #vPrincipal{padding-left:220px}
+  .cab{padding:14px 28px}
+  .franja{padding:8px 28px}
+  .nav{top:0;bottom:0;right:auto;width:220px;border-top:0;border-right:1px solid var(--linea);display:block;padding:16px 12px}
+  .nav .dentro{display:flex;flex-direction:column;gap:4px}
+  .nav button{flex-direction:row;justify-content:flex-start;gap:12px;min-height:50px;padding:0 14px;border-radius:12px;font-size:15px}
+  .nav button:hover{background:var(--vino-suave)}
+  .nav button[aria-current="page"]{background:var(--vino);color:#fff}
+  .nav button[aria-current="page"]::before{display:none}
+  .cuerpo{padding:22px 28px 110px}
+  #vRegistrar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+  #vRegistrar>.instalar,#vRegistrar>#contadorHoy{grid-column:1/-1}
+  #vRegistrar .tarjeta{padding:18px}
+  .barra{left:220px;bottom:0;justify-content:flex-end}
+  .barra .dentro{max-width:560px;padding:14px 28px}
+  #vInventario{display:grid;grid-template-columns:minmax(320px,380px) minmax(0,1fr);gap:14px 22px;align-items:start;grid-auto-flow:row dense;padding-bottom:28px}
+  #vInventario>*{grid-column:1}
+  #vInventario>#filtroEstado{grid-column:2;grid-row:1}
+  #vInventario>#lista{grid-column:2;grid-row:2/span 30}
+  .scroll{margin:0;padding:0;flex-wrap:wrap;overflow:visible}
+  .resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .cifra{padding:12px 14px}.cifra b{font-size:26px}.cifra span{font-size:12px}
+  .lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  .lista .vacio{grid-column:1/-1}
+  .fila+.fila{border-top:0}
+  .fila{border-bottom:1px solid var(--linea-suave);border-right:1px solid var(--linea-suave)}
+  .fila:hover,.gas:hover,.chip:hover{background:var(--vino-suave)}
+  .chip[aria-pressed="true"]:hover,.gas[aria-pressed="true"]:hover{background:var(--vino)}
+  .toast{left:236px;bottom:96px}
+}
 </style>
 </head>
 <body>
