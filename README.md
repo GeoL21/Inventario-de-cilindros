@@ -30,7 +30,7 @@ Abre `config.js` y reemplaza `PEGA_AQUI_LA_URL_DE_APPS_SCRIPT/exec` por la URL c
 
 ## Cambiar opciones sin tocar código
 
-Todo se cambia en la pestaña **Config** de la hoja: técnicos por sede, empresas, gases, capacidades, años para vencer la prueba hidrostática y el código de acceso (`cilindrocrc`). La app lo toma al sincronizar.
+Todo se cambia en la pestaña **Config** de la hoja: técnicos por sede, empresas, gases, capacidades, años para vencer la prueba hidrostática y el código de acceso. La app lo toma al sincronizar.
 
 ## Si cambias archivos de la app
 
