@@ -7,6 +7,9 @@
 
 'use strict';
 
+// Desplazamiento suave, salvo que el teléfono tenga activado "reducir movimiento"
+const DESPLAZA = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth';
+
 /***********************
  * VALORES POR DEFECTO
  * (se usan hasta que llega la configuración de la hoja)
@@ -541,7 +544,7 @@ function leerFormulario() {
     if (errores.some(function(e) { return e[0] === 'serial'; })) $('fSerial').classList.add('mal');
     if (ePH) $('fPH').classList.add('mal');
     const primero = document.querySelector('[data-error="' + errores[0][0] + '"]');
-    primero.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    primero.parentElement.scrollIntoView({ behavior: DESPLAZA, block: 'center' });
     if (errores[0][0] === 'serial') $('fSerial').focus();
     if (errores[0][0] === 'ph') $('fPH').focus();
     return null;
@@ -587,7 +590,7 @@ function terminar() {
   limpiarFormulario(true);
   pintarTiraSiguiente();
   if (document.activeElement) document.activeElement.blur();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: DESPLAZA });
   toast(ico('check', 's') + 'Listo. Lo guardado ya quedó registrado.');
 }
 
@@ -601,7 +604,7 @@ async function guardar(siguiente) {
     revisarSerial();
     $('fSerial').classList.add('mal');
     toast(ico('alerta', 's') + 'Ya está registrado hoy. Usa "Corregir el de hoy".');
-    $('fSerial').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('fSerial').scrollIntoView({ behavior: DESPLAZA, block: 'center' });
     return;
   }
   r.id = nuevoId('R');
@@ -645,9 +648,9 @@ async function guardar(siguiente) {
   if (S.versionNueva) { setTimeout(recargarSiSePuede, 1500); }
   if (siguiente) {
     $('fSerial').focus({ preventScroll: true });
-    $('fSerial').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('fSerial').scrollIntoView({ behavior: DESPLAZA, block: 'center' });
   } else {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: DESPLAZA });
   }
   sincronizar();
 }
@@ -1063,7 +1066,7 @@ function eventos() {
     if (autoCopiar() || S.copiado === this.value.trim().toUpperCase()) {
       // Ya tiene todo: cerrar teclado e ir a Contenido
       this.blur();
-      $('fContenido').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('fContenido').scrollIntoView({ behavior: DESPLAZA, block: 'center' });
     } else {
       $('fPH').focus();
     }
@@ -1125,7 +1128,7 @@ function eventos() {
       $('fSerial').value = fila.dataset.serial;
       revisarSerial();
       autoCopiar();
-      $('fSerial').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('fSerial').scrollIntoView({ behavior: DESPLAZA, block: 'center' });
     }
   });
 

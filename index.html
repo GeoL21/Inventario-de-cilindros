@@ -60,7 +60,7 @@ button{cursor:pointer}
 .etq{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:14px;font-weight:700;color:var(--tinta)}
 .etq em{font-style:normal;font-weight:600;font-size:12px;color:var(--suave)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--linea);background:#fff;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .12s,border-color .12s}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--linea);background:#fff;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:transform 150ms var(--ease-out)}
 .chip[aria-pressed="true"]{background:var(--vino);border-color:var(--vino);color:#fff;font-weight:700}
 .chip.mas{border-style:dashed;color:var(--suave)}
 .chip.mini{min-height:38px;padding:0 12px;font-size:14px}
@@ -166,7 +166,7 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 
 /* Avisos flotantes */
 .toast{position:fixed;left:16px;right:16px;bottom:calc(140px + env(safe-area-inset-bottom));z-index:9;display:flex;justify-content:center;pointer-events:none}
-.toast div{background:#1F2937;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:center;max-width:560px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:sube .2s ease-out}
+.toast div{background:#1F2937;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:center;max-width:560px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:sube .2s var(--ease-out)}
 @keyframes sube{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
 
 /* PC: pantalla completa (desde 1024 px) */
@@ -203,6 +203,14 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
   .chip[aria-pressed="true"]:hover,.gas[aria-pressed="true"]:hover{background:var(--vino)}
   .toast{left:236px;bottom:96px}
 }
+
+/* ---------- Movimiento (skill motion) ---------- */
+/* Botones: se encogen un poco al tocarlos (150 ms) para que se note la respuesta */
+:root{--ease-out:cubic-bezier(0.23,1,0.32,1)}
+button,.btn{transition:transform 150ms var(--ease-out)}
+button:active:not(:disabled),.btn:active{transform:scale(.98)}
+/* Con "reducir movimiento" activado en el teléfono: sin escalas */
+@media (prefers-reduced-motion:reduce){button:active:not(:disabled),.btn:active{transform:none!important}}
 </style>
 </head>
 <body>
