@@ -9,7 +9,7 @@
  * VERSION para que los celulares renueven la copia.
  *****************************************************************/
 
-const VERSION = 'inv-cilindros-v10';
+const VERSION = 'inv-cilindros-v11';
 
 const ARCHIVOS = [
   './',
@@ -41,11 +41,11 @@ self.addEventListener('install', function(event) {
 
 self.addEventListener('activate', function(event) {
   event.waitUntil(
-    caches.keys()
+    /* Solo borra cachés de esta app: el sitio geol21.github.io lo comparten varias PWA */ caches.keys()
       .then(function(nombres) {
         return Promise.all(
           nombres
-            .filter(function(nombre) { return nombre !== VERSION; })
+            .filter(function(nombre) { return nombre.indexOf('inv-cilindros-') === 0 && nombre !== VERSION; })
             .map(function(nombre) { return caches.delete(nombre); })
         );
       })
