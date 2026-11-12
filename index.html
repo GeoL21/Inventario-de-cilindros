@@ -407,6 +407,12 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
           <div id="fContenido" class="dos" role="group" aria-label="Contenido"></div>
           <p class="error-campo oculto" data-error="contenido"></p>
         </div>
+        <div class="campo oculto" id="campoVenceGas">
+          <label class="etq" for="fVenceGas">Vencimiento del gas <em>mes/año de la etiqueta · opcional</em></label>
+          <input id="fVenceGas" class="entrada" inputmode="numeric" autocomplete="off" placeholder="05/2027" maxlength="7">
+          <p class="error-campo oculto" data-error="venceGas"></p>
+          <span id="estadoGas" class="estado oculto"></span>
+        </div>
         <div class="campo">
           <label class="etq" for="fObs">Observación <em>opcional</em></label>
           <textarea id="fObs" class="entrada" placeholder="Golpe leve en el cuello" autocapitalize="sentences"></textarea>
@@ -444,7 +450,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
     <nav class="nav" aria-label="Secciones">
       <div class="dentro">
         <button id="navRegistrar" aria-current="page"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
-        <button id="navInventario"><svg class="i"><use href="#i-lista"/></svg>Inventario</button>
+        <button id="navInventario"><svg class="i"><use href="#i-lista"/></svg>Inventario<span id="puntoInventario" class="punto oculto"></span></button>
         <button id="navLlenado"><svg class="i"><use href="#i-camion"/></svg>Llenado<span id="puntoLlenado" class="punto oculto"></span></button>
       </div>
     </nav>

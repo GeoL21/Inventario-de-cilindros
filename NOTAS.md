@@ -18,6 +18,9 @@ Gases: oxígeno, nitrógeno, dioxicarbomed, oxígeno portátil y aire, con opci�
   Alerta cuando un lote pasa de 14 días afuera. Regreso cilindro por cilindro; los que no llegan dejan el lote abierto.
 - Borrar (papelera en cada cilindro del Inventario): solo con el "Código de administrador" de Config, que se pide
   cada vez. No elimina filas: marca la columna "Borrado" de Registros e Inventario actual.
+- Vencimiento del gas (mes/año de la etiqueta): columna "Vence gas" (18) en Registros e Inventario actual y col. 7 en
+  Llenados cilindros. Se pide al cerrar un regreso (uno por lote, se puede cambiar por cilindro) y es opcional en Registrar
+  si está Lleno. Aviso 30 días antes; solo cuenta en cilindros llenos.
 - Técnicos, empresas, gases, capacidades y años de la prueba hidrostática se cambian en la pestaña `Config`.
 
 ## Reglas que no se cambian

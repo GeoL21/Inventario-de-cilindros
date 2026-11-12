@@ -52,6 +52,7 @@ function doPost(e) {
     if (!cfg.codigo || String(datos.codigo || '').trim() !== cfg.codigo) {
       return responder({ ok: false, codigo: 'ACCESO', error: 'Código de acceso incorrecto.' });
     }
+    prepararColumnas();
     switch (datos.accion) {
       case 'validar':   return responder({ ok: true });
       case 'config':    return responder({ ok: true, config: configPublica(cfg), inventario: leerInventario(), lotes: leerLotes() });
@@ -199,6 +200,8 @@ function registrar(r, cfg) {
   if (!r.pintura) faltan.push('pintura');
   if (!r.contenido) faltan.push('contenido');
   if (faltan.length) return { ok: false, error: 'Falta: ' + faltan.join(', ') + '.' };
+  const venceGas = leerMesAnio(r.venceGas) ? mesAnio(r.venceGas) : '';
+  const estaLleno = String(r.contenido).trim().toLowerCase() === 'lleno';
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -261,6 +264,7 @@ function registrar(r, cfg) {
       serial, ph, vence, estado, r.valvula, r.pintura, r.contenido, obs,
       esCorreccion ? 'PWA (corrección)' : 'PWA'
     ]);
+    if (venceGas) ponerMesAnio(reg, reg.getLastRow(), COL_VENCE_GAS, venceGas);
 
     // Inventario actual: actualiza la fila del serial o crea una nueva
     if (!fila) fila = inv.getLastRow() + 1;
@@ -276,6 +280,9 @@ function registrar(r, cfg) {
         r.valvula, r.pintura, r.contenido, obs, r.tecnico, fecha, cuenta + 1, r.id
       ]]);
       if (inv.getLastColumn() >= COL_BORRADO) inv.getRange(fila, COL_BORRADO).clearContent();
+      // Vencimiento del gas: se pone si viene; un cilindro que no está lleno no tiene gas que venza
+      if (!estaLleno) inv.getRange(fila, COL_VENCE_GAS).clearContent();
+      else if (venceGas) ponerMesAnio(inv, fila, COL_VENCE_GAS, venceGas);
     }
 
     recordarEnConfig(cfg, 'Propietarios', r.propietario);
@@ -305,7 +312,7 @@ function marcarCorregido(reg, idViejo, idNuevo) {
 function leerInventario() {
   const inv = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_INV);
   if (inv.getLastRow() < 2) return [];
-  const ancho = Math.max(inv.getLastColumn(), 16);
+  const ancho = Math.max(inv.getLastColumn(), COL_VENCE_GAS);
   const filas = inv.getRange(2, 1, inv.getLastRow() - 1, ancho).getValues();
   const tz = Session.getScriptTimeZone();
   return filas.filter(function(f) {
@@ -317,7 +324,8 @@ function leerInventario() {
       obs: f[11], tecnico: f[12],
       fecha: f[13] instanceof Date ? Utilities.formatDate(f[13], tz, "yyyy-MM-dd'T'HH:mm:ss") : '',
       registros: Number(f[14]) || 1,
-      id: String(f[15] || '')
+      id: String(f[15] || ''),
+      venceGas: String(f[COL_VENCE_GAS - 1] || '')
     };
   });
 }
@@ -408,7 +416,7 @@ function ponerChip(hoja, fila, col, archivo) {
 }
 
 /** Cambia el contenido en Inventario actual (y deja historial), sin pisar registros más nuevos. */
-function marcarContenido(serial, contenido, fecha, tecnico, origen, idHist) {
+function marcarContenido(serial, contenido, fecha, tecnico, origen, idHist, venceGas) {
   const libro = SpreadsheetApp.getActiveSpreadsheet();
   const inv = libro.getSheetByName(HOJA_INV);
   const fila = buscarFila(inv, 1, serial);
@@ -416,11 +424,17 @@ function marcarContenido(serial, contenido, fecha, tecnico, origen, idHist) {
   const v = inv.getRange(fila, 1, 1, 16).getValues()[0];
   const ultimo = v[13];
   const finDelDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
-  if (!(ultimo instanceof Date) || ultimo <= finDelDia) inv.getRange(fila, 11).setValue(contenido);
+  if (!(ultimo instanceof Date) || ultimo <= finDelDia) {
+    inv.getRange(fila, 11).setValue(contenido);
+    if (venceGas) ponerMesAnio(inv, fila, COL_VENCE_GAS, venceGas);
+    else inv.getRange(fila, COL_VENCE_GAS).clearContent();
+  }
   // Historial: misma fila que un registro, con el origen del movimiento
-  libro.getSheetByName(HOJA_REG).appendRow([
+  const reg = libro.getSheetByName(HOJA_REG);
+  reg.appendRow([
     idHist, finDelDia, v[1], tecnico, v[2], v[3], v[4], v[0], v[5], v[6], v[7], v[8], v[9], contenido, '', origen
   ]);
+  if (venceGas) ponerMesAnio(reg, reg.getLastRow(), COL_VENCE_GAS, venceGas);
 }
 
 /** Pone la fórmula de días afuera y el estado de un lote. */
@@ -497,6 +511,8 @@ function regreso(g) {
   if (!String(g.remision || '').trim()) faltan.push('número de remisión');
   if (!llegaron.length) faltan.push('cilindros que llegaron');
   if (faltan.length) return { ok: false, error: 'Falta: ' + faltan.join(', ') + '.' };
+  const venceLote = leerMesAnio(g.venceGas) ? mesAnio(g.venceGas) : '';
+  const porCilindro = g.venceCil || {};
 
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -508,14 +524,18 @@ function regreso(g) {
     if (!fila) return { ok: false, error: 'No se encontró la salida ' + g.lote + '.' };
 
     const remision = String(g.remision).trim();
+    if (String(det.getRange(1, 7).getValue()) !== 'Vence gas') det.getRange(1, 7).setValue('Vence gas').setFontWeight('bold');
     const filas = det.getRange(2, 1, det.getLastRow() - 1, 6).getValues();
     let marcados = 0;
     filas.forEach(function(f, i) {
       if (f[0] !== g.lote || f[2] !== EN_LLENADO) return;
-      if (llegaron.indexOf(String(f[1]).toUpperCase()) < 0) return;
+      const serial = String(f[1]).toUpperCase();
+      if (llegaron.indexOf(serial) < 0) return;
+      const vence = leerMesAnio(porCilindro[serial]) ? mesAnio(porCilindro[serial]) : venceLote;
       det.getRange(i + 2, 3, 1, 4).setValues([['Llegó lleno', fecha, remision, g.id]]);
       det.getRange(i + 2, 4).setNumberFormat('dd/MM/yyyy');
-      marcarContenido(String(f[1]), 'Lleno', fecha, g.tecnico || '', 'Regreso de llenado ' + g.lote, g.id + '-' + f[1]);
+      if (vence) ponerMesAnio(det, i + 2, 7, vence);
+      marcarContenido(String(f[1]), 'Lleno', fecha, g.tecnico || '', 'Regreso de llenado ' + g.lote, g.id + '-' + f[1], vence);
       marcados++;
     });
 
@@ -552,8 +572,8 @@ function leerLotes() {
   const limite = new Date(Date.now() - 120 * 86400000);
   const cil = {};
   if (det && det.getLastRow() > 1) {
-    det.getRange(2, 1, det.getLastRow() - 1, 4).getValues().forEach(function(f) {
-      (cil[f[0]] = cil[f[0]] || []).push({ serial: String(f[1]), estado: f[2], regreso: textoFecha(f[3]) });
+    det.getRange(2, 1, det.getLastRow() - 1, 7).getValues().forEach(function(f) {
+      (cil[f[0]] = cil[f[0]] || []).push({ serial: String(f[1]), estado: f[2], regreso: textoFecha(f[3]), venceGas: String(f[6] || '') });
     });
   }
   return lot.getRange(2, 1, lot.getLastRow() - 1, 19).getValues()
@@ -643,7 +663,7 @@ function borrar(datos, cfg) {
       Utilities.formatDate(new Date(), tz, 'dd/MM/yyyy h:mm a');
 
     // Registros de este serial, del más nuevo al más viejo
-    const filas = reg.getLastRow() > 1 ? reg.getRange(2, 1, reg.getLastRow() - 1, COL_BORRADO).getValues() : [];
+    const filas = reg.getLastRow() > 1 ? reg.getRange(2, 1, reg.getLastRow() - 1, COL_VENCE_GAS).getValues() : [];
     const delSerial = [];
     filas.forEach(function(f, i) {
       if (String(f[7]).trim().toUpperCase() === serial) delSerial.push({ fila: i + 2, v: f });
@@ -657,6 +677,11 @@ function borrar(datos, cfg) {
       inv.getRange(filaInv, 1, 1, 7).setValues([[serial, p[2], p[4], p[5], p[6], p[8], p[9]]]);
       inv.getRange(filaInv, 8).setFormula(formulaEstado(filaInv));
       inv.getRange(filaInv, 9, 1, 8).setValues([[p[11], p[12], p[13], p[14], p[3], p[1], vigentes.length - 1, p[0]]]);
+      if (String(p[13]).trim().toLowerCase() === 'lleno' && p[COL_VENCE_GAS - 1]) {
+        ponerMesAnio(inv, filaInv, COL_VENCE_GAS, String(p[COL_VENCE_GAS - 1]));
+      } else {
+        inv.getRange(filaInv, COL_VENCE_GAS).clearContent();
+      }
       return { ok: true, quedo: 'anterior' };
     }
 
@@ -669,4 +694,36 @@ function borrar(datos, cfg) {
   } finally {
     lock.releaseLock();
   }
+}
+
+
+/***********************
+ * VENCIMIENTO DEL GAS (mes/año de la etiqueta del cilindro)
+ ***********************/
+
+const COL_VENCE_GAS = 18;   // columna "Vence gas" en Registros e Inventario actual
+
+/** "5/2027" → "05/2027" */
+function mesAnio(txt) {
+  const p = leerMesAnio(txt);
+  return p ? dos(p.mes) + '/' + p.anio : '';
+}
+
+/** Escribe MM/AAAA como texto, para que la hoja no lo convierta en fecha. */
+function ponerMesAnio(hoja, fila, col, valor) {
+  hoja.getRange(fila, col).setNumberFormat('@').setValue(valor);
+}
+
+/** Registros e Inventario actual llevan las columnas "Borrado" y "Vence gas". */
+function prepararColumnas() {
+  const libro = SpreadsheetApp.getActiveSpreadsheet();
+  [HOJA_REG, HOJA_INV].forEach(function(nombre) {
+    const hoja = libro.getSheetByName(nombre);
+    if (!hoja) return;
+    if (hoja.getMaxColumns() < COL_VENCE_GAS) hoja.insertColumnsAfter(hoja.getMaxColumns(), COL_VENCE_GAS - hoja.getMaxColumns());
+    const cab = hoja.getRange(1, COL_BORRADO, 1, 2).getValues()[0];
+    if (cab[0] !== 'Borrado' || cab[1] !== 'Vence gas') {
+      hoja.getRange(1, COL_BORRADO, 1, 2).setValues([['Borrado', 'Vence gas']]).setFontWeight('bold');
+    }
+  });
 }

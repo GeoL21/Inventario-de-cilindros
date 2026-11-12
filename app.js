@@ -222,9 +222,12 @@ function inventarioCompleto() {
   // Salidas y regresos de llenado que aún no se suben
   S.cola.forEach(function(op) {
     if (op.accion === 'salida') {
-      op.payload.l.seriales.forEach(function(s) { if (mapa[s]) mapa[s].contenido = EN_LLENADO; });
+      op.payload.l.seriales.forEach(function(s) { if (mapa[s]) { mapa[s].contenido = EN_LLENADO; mapa[s].venceGas = ''; } });
     } else if (op.accion === 'regreso') {
-      op.payload.g.llegaron.forEach(function(s) { if (mapa[s]) mapa[s].contenido = 'Lleno'; });
+      const g = op.payload.g;
+      g.llegaron.forEach(function(s) {
+        if (mapa[s]) { mapa[s].contenido = 'Lleno'; mapa[s].venceGas = (g.venceCil && g.venceCil[s]) || g.venceGas || ''; }
+      });
     }
   });
   return Object.keys(mapa).map(function(k) { return mapa[k]; });
@@ -342,6 +345,7 @@ function pintarFormulario() {
   pintarChips('fValvula', S.cfg.valvula, S.f.valvula, 'valvula');
   pintarChips('fPintura', S.cfg.pintura, S.f.pintura, 'pintura');
   pintarChips('fContenido', S.cfg.contenido, S.f.contenido, 'contenido');
+  $('campoVenceGas').classList.toggle('oculto', normal(S.f.contenido) !== 'lleno');
   $('fPropietarioOtro').classList.toggle('oculto', !S.otro.propietario);
   $('fGasOtro').classList.toggle('oculto', !S.otro.gas);
   pintarCapacidades();
@@ -475,6 +479,8 @@ function copiarDatos(c) {
   $('fPH').value = c.ph || '';
   S.f.valvula = c.valvula || '';
   S.f.pintura = c.pintura || '';
+  $('fVenceGas').value = normal(c.contenido) === 'lleno' ? (c.venceGas || '') : '';
+  pintarEstadoGas();
   pintarFormulario();
   pintarEstadoPH();
   limpiarErrores();
@@ -537,7 +543,8 @@ function leerFormulario() {
     valvula: S.f.valvula,
     pintura: S.f.pintura,
     contenido: S.f.contenido,
-    obs: $('fObs').value.trim()
+    obs: $('fObs').value.trim(),
+    venceGas: normal(S.f.contenido) === 'lleno' ? completarPH($('fVenceGas').value.trim()) : ''
   };
   const errores = [];
   if (!r.propietario) errores.push(['propietario', S.otro.propietario ? 'Escribe el nombre de la empresa.' : 'Elige el propietario.']);
@@ -548,6 +555,7 @@ function leerFormulario() {
   if (!r.valvula) errores.push(['valvula', 'Elige el estado de la válvula.']);
   if (!r.pintura) errores.push(['pintura', 'Elige el estado de la pintura.']);
   if (!r.contenido) errores.push(['contenido', 'Elige si está lleno o vacío.']);
+  if (r.venceGas && !leerMesAnio(r.venceGas)) errores.push(['venceGas', 'Usa el formato MM/AAAA, por ejemplo 05/2027.']);
 
   errores.forEach(function(e) { mostrarError(e[0], e[1]); });
   if (errores.length) {
@@ -557,6 +565,7 @@ function leerFormulario() {
     primero.parentElement.scrollIntoView({ behavior: DESPLAZA, block: 'center' });
     if (errores[0][0] === 'serial') $('fSerial').focus();
     if (errores[0][0] === 'ph') $('fPH').focus();
+    if (errores[0][0] === 'venceGas') $('fVenceGas').focus();
     return null;
   }
   return r;
@@ -569,6 +578,8 @@ function limpiarFormulario(todo) {
   $('fObs').value = '';
   S.f.valvula = S.f.pintura = S.f.contenido = '';
   if (todo) {
+    $('fVenceGas').value = '';
+    $('estadoGas').classList.add('oculto');
     S.f.propietario = S.f.gas = '';
     S.otro = { propietario: false, gas: false };
     $('fPropietarioOtro').value = '';
@@ -815,7 +826,7 @@ function pintarInventario() {
   }).join('');
 
   const conEstado = deSede.map(function(c) {
-    return Object.assign({ est: estadoPH(c.vence || calcularVence(c.ph)) }, c);
+    return Object.assign({ est: estadoPH(c.vence || calcularVence(c.ph)), gasEst: estadoGas(c) }, c);
   });
   const cuenta = {
     todos: conEstado.length,
@@ -839,9 +850,12 @@ function pintarInventario() {
     lleno: deGas.filter(function(c) { return normal(c.contenido) === 'lleno'; }).length,
     vacio: deGas.filter(function(c) { return normal(c.contenido) === 'vacio'; }).length,
     vencida: deGas.filter(function(c) { return c.est === 'Vencida'; }).length,
-    porvencer: deGas.filter(function(c) { return c.est === 'Por vencer'; }).length
+    porvencer: deGas.filter(function(c) { return c.est === 'Por vencer'; }).length,
+    gaspor: deGas.filter(function(c) { return c.gasEst === 'Por vencer'; }).length,
+    gasven: deGas.filter(function(c) { return c.gasEst === 'Vencido'; }).length
   };
-  const filtros = [['todos', S.filtroGas ? 'Todos los de ' + S.filtroGas : 'Todos'], ['lleno', 'Llenos'], ['vacio', 'Vacíos'], ['vencida', 'PH vencida'], ['porvencer', 'Por vencer']];
+  const filtros = [['todos', S.filtroGas ? 'Todos los de ' + S.filtroGas : 'Todos'], ['lleno', 'Llenos'], ['vacio', 'Vacíos'],
+    ['gaspor', 'Gas por vencer'], ['gasven', 'Gas vencido'], ['vencida', 'PH vencida'], ['porvencer', 'PH por vencer']];
   $('filtroEstado').innerHTML = filtros.map(function(f) {
     return '<button type="button" class="chip mini" data-estado="' + f[0] + '" aria-pressed="' +
       (S.filtroEstado === f[0]) + '">' + esc(f[1]) + ' <span class="n">' + cuentaGas[f[0]] + '</span></button>';
@@ -856,6 +870,8 @@ function pintarInventario() {
       case 'vacio': return normal(c.contenido) === 'vacio';
       case 'vencida': return c.est === 'Vencida';
       case 'porvencer': return c.est === 'Por vencer';
+      case 'gaspor': return c.gasEst === 'Por vencer';
+      case 'gasven': return c.gasEst === 'Vencido';
       default: return true;
     }
   }).sort(function(a, b) { return String(b.fecha || '').localeCompare(String(a.fecha || '')); });
@@ -875,7 +891,10 @@ function pintarInventario() {
       esc((S.filtroSede ? '' : c.sede + ' · ') + fechaCorta(c.fecha) + (c.tecnico ? ' · ' + c.tecnico : '')) +
       '</small></div><div class="der">' +
       '<span class="estado vino">' + esc(c.contenido || '') + '</span>' +
-      (c.est ? '<span class="estado ' + claseEstado(c.est) + '">' + (c.est === 'Vencida' ? 'Venció ' : 'Vence ') + esc(c.vence || calcularVence(c.ph)) + '</span>' : '') +
+      (c.gasEst === 'Vencido' || c.gasEst === 'Por vencer'
+        ? '<span class="estado ' + (c.gasEst === 'Vencido' ? 'rojo' : 'alerta') + '">Gas ' +
+          (c.gasEst === 'Vencido' ? 'venció ' : 'vence ') + esc(c.venceGas) + '</span>' : '') +
+      (c.est ? '<span class="estado ' + claseEstado(c.est) + '">' + (c.est === 'Vencida' ? 'PH venció ' : 'PH vence ') + esc(c.vence || calcularVence(c.ph)) + '</span>' : '') +
       '</div></button><button type="button" class="papelera" data-borrar="' + esc(c.serial) +
       '" aria-label="Borrar ' + esc(c.serial) + '">' + ico('papelera') + '</button></div>';
   }).join('') + (lista.length > 300
@@ -966,7 +985,9 @@ function lotesCompletos() {
       const lote = lotes.find(function(x) { return x.id === g.lote; });
       if (!lote) return;
       lote.cil.forEach(function(c) {
-        if (c.estado === EN_LLENADO && g.llegaron.indexOf(c.serial) >= 0) { c.estado = 'Llegó lleno'; c.regreso = g.fecha; }
+        if (c.estado === EN_LLENADO && g.llegaron.indexOf(c.serial) >= 0) {
+          c.estado = 'Llegó lleno'; c.regreso = g.fecha; c.venceGas = (g.venceCil && g.venceCil[c.serial]) || g.venceGas || '';
+        }
       });
       lote.regreso = g.fecha;
       lote.remEntrada = lote.remEntrada ? lote.remEntrada + ', ' + g.remision : g.remision;
@@ -988,7 +1009,49 @@ function lotesDeMiSede() {
   return lotesCompletos().filter(function(l) { return l.sede === S.sede; });
 }
 
+/***********************
+ * VENCIMIENTO DEL GAS
+ * Mes/año de la etiqueta. Vale hasta el último día de ese mes.
+ * Avisa desde 30 días antes, solo en cilindros llenos.
+ ***********************/
+
+const DIAS_AVISO_GAS = 30;
+
+function estadoGas(c) {
+  if (!c || normal(c.contenido) !== 'lleno') return '';
+  const v = leerMesAnio(c.venceGas);
+  if (!v) return '';
+  const fin = new Date(v.anio, v.mes, 1);   // primer día del mes siguiente
+  const hoy = new Date();
+  if (fin <= hoy) return 'Vencido';
+  if (fin - hoy <= DIAS_AVISO_GAS * 86400000) return 'Por vencer';
+  return 'Vigente';
+}
+
+function pintarPuntoInventario() {
+  const p = $('puntoInventario');
+  if (!p) return;
+  const n = inventarioCompleto().filter(function(c) {
+    const e = estadoGas(c);
+    return c.sede === S.sede && (e === 'Vencido' || e === 'Por vencer');
+  }).length;
+  p.textContent = n;
+  p.classList.toggle('oculto', !n);
+}
+
+/** Estado del vencimiento del gas mientras se escribe en Registrar. */
+function pintarEstadoGas() {
+  const caja = $('estadoGas');
+  const txt = completarPH($('fVenceGas').value);
+  if (!leerMesAnio(txt)) { caja.classList.add('oculto'); return; }
+  const est = estadoGas({ contenido: 'Lleno', venceGas: txt });
+  caja.className = 'estado ' + (est === 'Vencido' ? 'rojo' : est === 'Por vencer' ? 'alerta' : 'ok');
+  caja.innerHTML = ico(est === 'Vigente' ? 'check' : 'alerta', 's') +
+    (est === 'Vencido' ? 'Gas vencido · venció ' : est === 'Por vencer' ? 'Gas por vencer · vence ' : 'Gas vigente hasta ') + esc(txt);
+}
+
 function pintarPuntoLlenado() {
+  pintarPuntoInventario();
   const n = lotesDeMiSede().filter(function(l) { return l.estado !== 'Cerrado' && diasAfuera(l) > DIAS_ALERTA; }).length;
   const p = $('puntoLlenado');
   if (!p) return;
@@ -1215,7 +1278,7 @@ function irAlError() {
 function abrirLote(id) {
   const lote = lotesCompletos().find(function(l) { return l.id === id; });
   if (!lote) return;
-  S.ll = { tipo: 'lote', id: id, g: { fecha: hoyISO(), remision: '', foto: '', marca: {} }, err: {} };
+  S.ll = { tipo: 'lote', id: id, g: { fecha: hoyISO(), remision: '', foto: '', marca: {}, venceGas: '', venceCil: {}, otraFecha: false }, err: {} };
   pintarLlenado();
   window.scrollTo(0, 0);
 }
@@ -1255,6 +1318,17 @@ function pintarRegreso(lote) {
     '<div class="campo"><label class="etq" for="llRemR">Número de remisión de entrada</label>' +
     '<input id="llRemR" class="entrada" data-ll-campo="remision" inputmode="numeric" autocomplete="off" placeholder="135210" value="' + esc(g.remision) + '">' +
     errorCampo(err, 'remision') + '</div>' + bloqueFoto(g.foto, 'entrada', err) + '</div>';
+  const llegan = faltan.filter(function(c) { return g.marca[c.serial] === 'si'; });
+  html += '<div class="tarjeta"><div class="campo"><label class="etq" for="llVenceGas">Vencimiento del gas <em>mes/año de la etiqueta</em></label>' +
+    '<input id="llVenceGas" class="entrada" data-ll-campo="venceGas" data-ll-mes="1" inputmode="numeric" autocomplete="off" placeholder="05/2027" maxlength="7" value="' + esc(g.venceGas) + '">' +
+    '<p class="ayuda">Se aplica a ' + (llegan.length ? 'los ' + llegan.length + ' que llegaron' : 'los que marques como llegados') + '.</p>' +
+    errorCampo(err, 'venceGas') +
+    (llegan.length ? '<button type="button" class="chip mini" data-ll="otraFecha" aria-pressed="' + g.otraFecha + '" style="align-self:flex-start">Un cilindro trae otra fecha</button>' : '') +
+    (g.otraFecha && llegan.length ? '<div>' + llegan.map(function(c) {
+      return '<div class="marca"><b>' + esc(c.serial) + '</b><input class="entrada" style="max-width:140px;min-height:44px;font-size:16px" data-ll-cil-vence="' + esc(c.serial) +
+        '" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="' + esc(g.venceGas || 'Igual') + '" value="' + esc(g.venceCil[c.serial] || '') + '"></div>';
+    }).join('') + '</div><p class="ayuda">Deja vacío el que trae la misma fecha del lote.</p>' : '') +
+    errorCampo(err, 'venceCil') + '</div></div>';
   const algunoNo = faltan.some(function(c) { return g.marca[c.serial] === 'no'; });
   html += '<button type="button" class="btn prin" data-ll="guardarRegreso">' + ico('check') +
     (algunoNo ? 'Guardar regreso (queda abierto)' : 'Cerrar regreso') + '</button>';
@@ -1272,6 +1346,13 @@ function validarRegreso(lote) {
   else if (g.fecha < lote.salida) err.fecha = 'No puede ser antes de la salida (' + fechaISO(lote.salida) + ').';
   if (!String(g.remision).trim()) err.remision = 'Escribe el número de la remisión de entrada.';
   if (!g.foto) err.foto = 'Toma la foto de la remisión de entrada.';
+  const venceLote = completarPH(String(g.venceGas || '').trim());
+  if (!venceLote) err.venceGas = 'Escribe el mes y año de vencimiento del gas.';
+  else if (!leerMesAnio(venceLote)) err.venceGas = 'Usa el formato MM/AAAA, por ejemplo 05/2027.';
+  const malos = Object.keys(g.venceCil).filter(function(s) {
+    return g.marca[s] === 'si' && g.venceCil[s] && !leerMesAnio(completarPH(g.venceCil[s]));
+  });
+  if (malos.length) err.venceCil = 'Revisa la fecha de: ' + malos.join(', ') + ' (MM/AAAA).';
   S.ll.err = err;
   return !Object.keys(err).length;
 }
@@ -1284,6 +1365,15 @@ async function guardarRegreso() {
   const faltan = porLlegar(lote);
   const datos = {
     id: nuevoId('G'), lote: lote.id, tecnico: S.tecnico, fecha: g.fecha, remision: String(g.remision).trim(), foto: g.foto,
+    venceGas: completarPH(String(g.venceGas).trim()),
+    venceCil: (function() {
+      const out = {};
+      Object.keys(g.venceCil).forEach(function(s) {
+        const v = completarPH(String(g.venceCil[s] || '').trim());
+        if (g.marca[s] === 'si' && leerMesAnio(v)) out[s] = v;
+      });
+      return out;
+    })(),
     llegaron: faltan.filter(function(c) { return g.marca[c.serial] === 'si'; }).map(function(c) { return c.serial; }),
     noLlegaron: faltan.filter(function(c) { return g.marca[c.serial] === 'no'; }).map(function(c) { return c.serial; })
   };
@@ -1304,7 +1394,8 @@ function pintarDetalle(lote) {
     ' · rem. ' + esc(lote.remEntrada) + '</em></span><div>' +
     lote.cil.map(function(c) {
       return '<div class="marca"><b>' + esc(c.serial) + '</b><span class="estado ok">' + esc(c.estado) +
-        (c.regreso ? ' · ' + fechaISO(c.regreso) : '') + '</span></div>';
+        (c.regreso ? ' · ' + fechaISO(c.regreso) : '') + '</span>' +
+        (c.venceGas ? '<span class="estado vino">Gas ' + esc(c.venceGas) + '</span>' : '') + '</div>';
     }).join('') + '</div></div></div>';
   $('vLlenado').innerHTML = html;
 }
@@ -1429,6 +1520,7 @@ function eventosLlenado() {
         pintarSelCil();
         break;
       case 'ninguno': S.ll.f.sel = []; pintarSelCil(); break;
+      case 'otraFecha': S.ll.g.otraFecha = !S.ll.g.otraFecha; conservarScroll(pintarLlenado); break;
       case 'todos': {
         const lote = lotesCompletos().find(function(l) { return l.id === S.ll.id; });
         porLlegar(lote).forEach(function(c) { S.ll.g.marca[c.serial] = 'si'; });
@@ -1441,6 +1533,14 @@ function eventosLlenado() {
 
   // Campos de texto y fecha: se guardan sin volver a pintar (no se pierde el foco)
   v.addEventListener('input', function(e) {
+    const cilV = e.target.dataset.llCilVence;
+    if (cilV) {
+      e.target.value = mascaraPH(e.target.value);
+      S.ll.g.venceCil[cilV] = e.target.value;
+      quitarError('venceCil');
+      return;
+    }
+    if (e.target.dataset.llMes) e.target.value = mascaraPH(e.target.value);
     const campo = e.target.dataset.llCampo;
     if (!campo || !S.ll) return;
     const d = S.ll.tipo === 'salida' ? S.ll.f : S.ll.g;
@@ -1775,6 +1875,17 @@ function eventos() {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
   });
 
+  $('fVenceGas').addEventListener('input', function(e) {
+    const borrando = e.inputType && e.inputType.indexOf('delete') === 0;
+    let v = mascaraPH(this.value);
+    if (borrando && /\/$/.test(this.value)) v = v.replace(/\/$/, '');
+    this.value = v;
+    mostrarError('venceGas', '');
+    pintarEstadoGas();
+  });
+  $('fVenceGas').addEventListener('blur', function() { this.value = completarPH(this.value); pintarEstadoGas(); });
+  $('fVenceGas').addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+
   $('btnGuardar').onclick = function() { guardar(false); };
   $('btnSiguiente').onclick = function() { guardar(true); };
 
@@ -1923,7 +2034,7 @@ async function iniciar() {
 /** Recarga la app para usar la versión nueva, sin perder lo que se está escribiendo. */
 function recargarSiSePuede() {
   if (!S.versionNueva) return;
-  const aMedias = $('fSerial').value.trim() || $('fPH').value.trim() || $('fObs').value.trim() || S.corrigiendo || S.ll;
+  const aMedias = $('fSerial').value.trim() || $('fPH').value.trim() || $('fVenceGas').value.trim() || $('fObs').value.trim() || S.corrigiendo || S.ll;
   if (aMedias) return;
   S.versionNueva = false;
   location.reload();
