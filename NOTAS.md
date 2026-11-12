@@ -12,6 +12,10 @@ Gases: oxígeno, nitrógeno, dioxicarbomed, oxígeno portátil y aire, con opci�
 - Datos: hoja "Inventario de cilindros - CRC", con pestañas `Registros`, `Inventario actual` y `Config`.
 - La hoja y su Apps Script viven en la cuenta cilindrocrc@gmail.com (migrada el 12/11/2026).
   La copia vieja de geoortiz89@gmail.com ya no se usa.
+- Salidas a llenado (pestaña Llenado de la app): hojas `Llenados` (un lote por fila) y `Llenados cilindros`
+  (un cilindro por fila). Fotos de remisiones en la carpeta "Inventario de cilindros - Remisiones" de cilindrocrc,
+  puestas en la hoja como chip de Drive (servicio avanzado Google Sheets API; si falta, queda un enlace "Remisión").
+  Alerta cuando un lote pasa de 14 días afuera. Regreso cilindro por cilindro; los que no llegan dejan el lote abierto.
 - Técnicos, empresas, gases, capacidades y años de la prueba hidrostática se cambian en la pestaña `Config`.
 
 ## Reglas que no se cambian

@@ -116,7 +116,8 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 
 /* Navegación inferior */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom);display:flex;justify-content:center}
-.nav .dentro{width:100%;max-width:640px;display:grid;grid-template-columns:1fr 1fr}
+.nav .dentro{width:100%;max-width:640px;display:grid;grid-template-columns:1fr 1fr 1fr}
+.nav .punto{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;height:18px;border-radius:9px;background:var(--rojo);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;padding:0 5px}
 .nav button{border:0;background:none;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;font-weight:700;color:var(--suave);position:relative}
 .nav button[aria-current="page"]{color:var(--vino)}
 .nav button[aria-current="page"]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--vino)}
@@ -169,6 +170,43 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .toast div{background:#1F2937;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:center;max-width:560px;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:sube .2s var(--ease-out)}
 @keyframes sube{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
 
+
+/* Llenado */
+.lote{display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:none;width:100%;text-align:left;min-height:68px}
+.lote+.lote{border-top:1px solid var(--linea-suave)}
+.lote:active{background:var(--vino-suave)}
+.lote .abrir{flex:1;min-width:0;border:0;background:none;text-align:left;padding:0;min-height:44px;color:inherit}
+.lote .txt{display:block}
+.lote .txt b{display:block;font-size:16px;font-weight:800}
+.lote .txt small{display:block;font-size:13px;color:var(--suave)}
+.lote .dias{font-size:13px;font-weight:700}
+.lote .dias.rojo{color:var(--rojo-txt)}.lote .dias.ok{color:var(--ok-txt)}
+.lote .der{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.tit-sec{font-size:13px;font-weight:800;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin:6px 2px 0}
+.chip-foto{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;border:0;background:var(--ok-suave);color:var(--ok-txt);font-size:14px;font-weight:700}
+.chip-foto.chica{min-height:30px;padding:0 10px;font-size:12px}
+.chip-foto.falta{background:var(--alerta-suave);color:var(--alerta-txt)}
+.fila-foto{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn-foto{min-height:44px;border-radius:12px;border:1.5px dashed var(--vino);background:#fff;color:var(--vino);font-weight:800;font-size:15px;display:inline-flex;align-items:center;gap:8px;padding:0 14px}
+.sel-cil{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:340px;overflow-y:auto;padding:2px}
+.sel-cil .chip{justify-content:space-between;border-radius:12px;padding:0 12px;font-variant-numeric:tabular-nums}
+.sel-cil .chip small{font-size:11px;font-weight:700;opacity:.75}
+.marca{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--linea-suave)}
+.marca:first-child{border-top:0}
+.marca b{flex:1;font-size:16px;font-weight:800;letter-spacing:.03em}
+.marca .chip{min-height:40px;padding:0 12px;font-size:14px}
+.marca .chip.no[aria-pressed="true"]{background:var(--rojo);border-color:var(--rojo)}
+.cab-lote{display:flex;flex-direction:column;gap:4px}
+.cab-lote b{font-size:17px;font-weight:800}
+.cab-lote small{font-size:14px;color:var(--suave)}
+.volver{align-self:flex-start;border:0;background:none;color:var(--vino);font-weight:800;font-size:15px;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px}
+.visor{position:fixed;inset:0;z-index:20;background:rgba(15,15,20,.92);display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom))}
+.visor .arriba{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;margin-bottom:8px}
+.visor .arriba span{flex:1}
+.visor .arriba button{width:44px;height:44px;border:0;border-radius:12px;background:rgba(255,255,255,.15);color:#fff;display:grid;place-items:center}
+.visor .img{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;color:#fff}
+.visor img{max-width:100%;height:auto;border-radius:8px;background:#fff}
+
 /* PC: pantalla completa (desde 1024 px) */
 @media (min-width:1024px){
   #app{max-width:none}
@@ -202,6 +240,8 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
   .fila:hover,.gas:hover,.chip:hover{background:var(--vino-suave)}
   .chip[aria-pressed="true"]:hover,.gas[aria-pressed="true"]:hover{background:var(--vino)}
   .toast{left:236px;bottom:96px}
+  #vLlenado{max-width:760px}
+  .nav .punto{left:auto;right:12px;top:15px}
 }
 
 /* ---------- Movimiento (skill motion) ---------- */
@@ -231,6 +271,11 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
   <symbol id="i-sede" viewBox="0 0 24 24"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
   <symbol id="i-instalar" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
   <symbol id="i-cilindro" viewBox="0 0 24 24"><path d="M10 2h4M12 2v3"/><rect x="7" y="5" width="10" height="17" rx="4"/><path d="M7 11h10"/></symbol>
+  <symbol id="i-camion" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+  <symbol id="i-camara" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="i-archivo" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></symbol>
+  <symbol id="i-atras" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-flecha" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
 </svg>
 
 <div id="app">
@@ -369,6 +414,9 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
       <div id="lista" class="lista"></div>
     </main>
 
+    <!-- Salidas a llenado -->
+    <main id="vLlenado" class="cuerpo oculto"></main>
+
     <div id="barraGuardar" class="barra">
       <div class="dentro">
         <button id="btnGuardar" class="btn">Guardar</button>
@@ -380,11 +428,17 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
       <div class="dentro">
         <button id="navRegistrar" aria-current="page"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
         <button id="navInventario"><svg class="i"><use href="#i-lista"/></svg>Inventario</button>
+        <button id="navLlenado"><svg class="i"><use href="#i-camion"/></svg>Llenado<span id="puntoLlenado" class="punto oculto"></span></button>
       </div>
     </nav>
   </div>
 </div>
 <div id="toast" class="toast" aria-live="polite"></div>
+<div id="visor" class="visor oculto" role="dialog" aria-modal="true" aria-labelledby="visorTit">
+  <div class="arriba"><span id="visorTit">Remisión</span><button id="visorCerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div id="visorImg" class="img"></div>
+</div>
+<input id="entradaFoto" type="file" accept="image/*" capture="environment" class="oculto">
 
 <script src="config.js"></script>
 <script src="app.js"></script>

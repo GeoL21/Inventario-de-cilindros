@@ -195,7 +195,9 @@ const S = {
   filtroProp: '',
   siguiente: false,     // el formulario quedó listo para otro cilindro igual
   repetidos: ls('ic_repetidos') || [],   // avisos de registros rechazados por repetidos
-  sync: { estado: '', msg: '' }
+  sync: { estado: '', msg: '' },
+  lotes: [],            // salidas a llenado descargadas de la hoja
+  ll: null              // pantalla abierta en Llenado (ver LLENADO)
 };
 
 /** Registros propios aún en cola, con la misma forma que el inventario. */
@@ -215,6 +217,14 @@ function inventarioCompleto() {
         vence: calcularVence(r.ph),
         registros: (previo ? previo.registros || 1 : 0) + (r.corrige || (previo && esDeHoy(previo)) ? 0 : 1)
       });
+    }
+  });
+  // Salidas y regresos de llenado que aún no se suben
+  S.cola.forEach(function(op) {
+    if (op.accion === 'salida') {
+      op.payload.l.seriales.forEach(function(s) { if (mapa[s]) mapa[s].contenido = EN_LLENADO; });
+    } else if (op.accion === 'regreso') {
+      op.payload.g.llegaron.forEach(function(s) { if (mapa[s]) mapa[s].contenido = 'Lleno'; });
     }
   });
   return Object.keys(mapa).map(function(k) { return mapa[k]; });
@@ -690,11 +700,16 @@ async function sincronizar() {
     const datos = await llamar('config', {}, 45000);
     S.cfg = Object.assign({}, CFG_INICIAL, datos.config);
     S.inv = datos.inventario || [];
+    S.lotes = datos.lotes || [];
     await guardarDato('cfg', S.cfg);
     await guardarDato('inv', S.inv);
+    await guardarDato('lotes', S.lotes);
     ls('ic_ultima', new Date().toISOString());
     S.sync = { estado: 'ok', msg: '' };
-    if (S.vista === 'registrar') pintarFormulario(); else pintarInventario();
+    if (S.vista === 'registrar') pintarFormulario();
+    else if (S.vista === 'llenado') pintarLlenado();
+    else pintarInventario();
+    pintarPuntoLlenado();
   } catch (e) {
     if (e.sinRed) S.sync = { estado: '', msg: '' };
     else if (e.codigo === 'ACCESO') { S.sync = { estado: '', msg: '' }; ls(CLAVE_CODIGO, null); mostrarAcceso(e.message); }
@@ -750,7 +765,10 @@ async function descartarPrimero() {
   const op = S.cola[0];
   if (!op) return;
   const r = op.payload.r || {};
-  if (!confirm('¿Descartar el registro del serial ' + (r.serial || '') + '? No se subirá a la hoja.')) return;
+  const que = op.accion === 'salida' ? 'la salida a llenado con remisión ' + op.payload.l.remision
+    : op.accion === 'regreso' ? 'el regreso de llenado con remisión ' + op.payload.g.remision
+    : 'el registro del serial ' + (r.serial || '');
+  if (!confirm('¿Descartar ' + que + '? No se subirá a la hoja.')) return;
   S.cola.shift();
   await guardarDato('cola', S.cola);
   S.sync = { estado: '', msg: '' };
@@ -896,6 +914,583 @@ function pintarPorGas(cilindros) {
 
 
 /***********************
+ * LLENADO
+ * Salidas de cilindros propios a llenado y su regreso,
+ * con foto de la remisión en los dos momentos.
+ *
+ * S.ll indica la pantalla abierta:
+ *   null                          → lista de lotes
+ *   { tipo: 'salida', f: {...} }  → nueva salida
+ *   { tipo: 'lote', id, g: {...} } → regreso (o detalle si está cerrado)
+ ***********************/
+
+const EN_LLENADO = 'En llenado';
+const DIAS_ALERTA = 14;   // más de dos semanas afuera → alerta
+
+function hoyISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + dos(d.getMonth() + 1) + '-' + dos(d.getDate());
+}
+
+function fechaISO(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+
+function diasEntre(a, b) {
+  const da = new Date(a + 'T00:00:00'), db = new Date(b + 'T00:00:00');
+  if (isNaN(da) || isNaN(db)) return 0;
+  return Math.round((db - da) / 86400000);
+}
+
+function esClinica(nombre) {
+  const n = normal(nombre);
+  return n === normal(S.cfg.propietarios[0] || '') || n.indexOf('clinica') >= 0;
+}
+
+/** Lotes de la hoja + lo que este celular aún no ha subido. */
+function lotesCompletos() {
+  const lotes = JSON.parse(JSON.stringify(S.lotes || []));
+  S.cola.forEach(function(op) {
+    if (op.accion === 'salida') {
+      const l = op.payload.l;
+      lotes.push({
+        id: l.id, sede: l.sede, gas: l.gas, empresa: l.empresa, salida: l.fecha, remSalida: l.remision,
+        tecnico: l.tecnico, regreso: '', remEntrada: '', estado: EN_LLENADO, fotoSalida: '', fotoEntrada: '',
+        fotoLocalSalida: l.foto, pendiente: true,
+        cil: l.seriales.map(function(s) { return { serial: s, estado: EN_LLENADO, regreso: '' }; })
+      });
+    } else if (op.accion === 'regreso') {
+      const g = op.payload.g;
+      const lote = lotes.find(function(x) { return x.id === g.lote; });
+      if (!lote) return;
+      lote.cil.forEach(function(c) {
+        if (c.estado === EN_LLENADO && g.llegaron.indexOf(c.serial) >= 0) { c.estado = 'Llegó lleno'; c.regreso = g.fecha; }
+      });
+      lote.regreso = g.fecha;
+      lote.remEntrada = lote.remEntrada ? lote.remEntrada + ', ' + g.remision : g.remision;
+      lote.fotoLocalEntrada = g.foto;
+      lote.estado = lote.cil.some(function(c) { return c.estado === EN_LLENADO; }) ? EN_LLENADO : 'Cerrado';
+      lote.pendiente = true;
+    }
+  });
+  return lotes;
+}
+
+function porLlegar(lote) { return lote.cil.filter(function(c) { return c.estado === EN_LLENADO; }); }
+
+function diasAfuera(lote) {
+  return diasEntre(lote.salida, lote.estado === 'Cerrado' ? lote.regreso : hoyISO());
+}
+
+function lotesDeMiSede() {
+  return lotesCompletos().filter(function(l) { return l.sede === S.sede; });
+}
+
+function pintarPuntoLlenado() {
+  const n = lotesDeMiSede().filter(function(l) { return l.estado !== 'Cerrado' && diasAfuera(l) > DIAS_ALERTA; }).length;
+  const p = $('puntoLlenado');
+  if (!p) return;
+  p.textContent = n;
+  p.classList.toggle('oculto', !n);
+}
+
+/** Chip que abre la foto de la remisión. */
+function chipFoto(lote, cual, chica) {
+  const id = cual === 'salida' ? lote.fotoSalida : lote.fotoEntrada;
+  const local = cual === 'salida' ? lote.fotoLocalSalida : lote.fotoLocalEntrada;
+  const rem = cual === 'salida' ? lote.remSalida : lote.remEntrada;
+  const texto = cual === 'salida' ? 'Salida' : 'Entrada';
+  if (!id && !local) return '';
+  return '<button type="button" class="chip-foto' + (chica ? ' chica' : '') + '" data-foto-lote="' + esc(lote.id) +
+    '" data-foto-cual="' + cual + '" aria-label="Ver remisión de ' + texto.toLowerCase() + ' ' + esc(rem) + '">' +
+    ico('archivo', 's') + (chica ? texto : 'Remisión ' + texto.toLowerCase()) + '</button>';
+}
+
+function lineaDias(lote) {
+  const d = diasAfuera(lote);
+  if (lote.estado === 'Cerrado') {
+    return '<span class="dias ok">Cerrado · ' + d + (d === 1 ? ' día' : ' días') + '</span>';
+  }
+  const tarde = d > DIAS_ALERTA;
+  return '<span class="dias' + (tarde ? ' rojo' : '') + '">' + d + (d === 1 ? ' día' : ' días') + ' afuera' +
+    (tarde ? ' · pasó 2 semanas' : '') + '</span>';
+}
+
+function filaLote(l) {
+  const n = l.cil.length;
+  const faltan = porLlegar(l).length;
+  const det = l.estado !== 'Cerrado' && faltan < n ? ' · faltan ' + faltan : '';
+  const der = l.estado === 'Cerrado'
+    ? '<div class="fila-foto">' + chipFoto(l, 'salida', true) + chipFoto(l, 'entrada', true) + '</div>'
+    : (diasAfuera(l) > DIAS_ALERTA ? '<span style="color:var(--rojo-txt)">' + ico('alerta') + '</span>' : ico('flecha'));
+  return '<div class="lote">' +
+    '<button type="button" class="abrir" data-lote="' + esc(l.id) + '"><span class="txt">' +
+    '<b>' + esc(l.gas) + ' · ' + n + (n === 1 ? ' cilindro' : ' cilindros') + det + '</b>' +
+    '<small>' + esc(l.empresa) + ' · salió ' + fechaISO(l.salida) + ' · rem. ' + esc(l.remSalida) + '</small>' +
+    (l.pendiente ? '<small>' + ico('sinred', 's') + ' Sin subir</small>' : '') +
+    lineaDias(l) + '</span></button>' +
+    '<div class="der">' + der + '</div></div>';
+}
+
+function pintarLlenado() {
+  pintarPuntoLlenado();
+  if (!S.ll) return pintarLotes();
+  if (S.ll.tipo === 'salida') return pintarSalida();
+  const lote = lotesCompletos().find(function(l) { return l.id === S.ll.id; });
+  if (!lote) { S.ll = null; return pintarLotes(); }
+  if (lote.estado === 'Cerrado') return pintarDetalle(lote);
+  return pintarRegreso(lote);
+}
+
+function pintarLotes() {
+  const lotes = lotesDeMiSede();
+  const abiertos = lotes.filter(function(l) { return l.estado !== 'Cerrado'; })
+    .sort(function(a, b) { return a.salida.localeCompare(b.salida); });
+  const cerrados = lotes.filter(function(l) { return l.estado === 'Cerrado'; })
+    .sort(function(a, b) { return b.regreso.localeCompare(a.regreso); }).slice(0, 30);
+  let html = '<button type="button" class="btn prin" data-ll="nueva">' + ico('camion') + 'Nueva salida a llenado</button>';
+  html += '<p class="tit-sec">En llenado · ' + esc(S.sede) + '</p>';
+  html += abiertos.length
+    ? '<div class="lista">' + abiertos.map(filaLote).join('') + '</div>'
+    : '<div class="lista"><div class="vacio">' + ico('camion', 'l') +
+      '<b>No hay cilindros en llenado</b><span>Cuando salgan a llenar, regístralos con "Nueva salida".</span></div></div>';
+  if (cerrados.length) {
+    html += '<p class="tit-sec">Regresaron</p><div class="lista">' + cerrados.map(filaLote).join('') + '</div>';
+  }
+  $('vLlenado').innerHTML = html;
+}
+
+
+/* ---------- Nueva salida ---------- */
+
+function nuevaSalida() {
+  const empresas = empresasLlenado();
+  S.ll = {
+    tipo: 'salida',
+    f: { empresa: empresas.length === 1 ? empresas[0] : '', otraEmpresa: false, gas: '', fecha: hoyISO(),
+         remision: '', foto: '', sel: [], q: '' },
+    err: {}
+  };
+  pintarLlenado();
+  window.scrollTo(0, 0);
+}
+
+function empresasLlenado() {
+  return opciones(S.cfg.propietarios.filter(function(p) { return !esClinica(p); }), ls('ic_empresas_llenado') || []);
+}
+
+/** Cilindros propios de la sede, del gas elegido, que no estén ya en llenado. */
+function cilindrosParaSalida(gas) {
+  const ocupados = {};
+  lotesCompletos().forEach(function(l) {
+    porLlegar(l).forEach(function(c) { ocupados[c.serial.toUpperCase()] = true; });
+  });
+  return inventarioCompleto().filter(function(c) {
+    return c.sede === S.sede && esClinica(c.propietario) && normal(c.gas) === normal(gas) &&
+      normal(c.contenido) !== normal(EN_LLENADO) && !ocupados[String(c.serial).toUpperCase()];
+  }).sort(function(a, b) {
+    const va = normal(a.contenido) === 'vacio' ? 0 : 1, vb = normal(b.contenido) === 'vacio' ? 0 : 1;
+    return va - vb || String(a.serial).localeCompare(String(b.serial), 'es', { numeric: true });
+  });
+}
+
+function errorCampo(err, campo) {
+  return '<p class="error-campo' + (err[campo] ? '' : ' oculto') + '" data-ll-error="' + campo + '">' +
+    (err[campo] ? ico('alerta', 's') + esc(err[campo]) : '') + '</p>';
+}
+
+function bloqueFoto(foto, cual, err) {
+  return '<div class="campo"><span class="etq">Foto de la remisión de ' + cual + '</span>' +
+    (foto
+      ? '<div class="fila-foto"><button type="button" class="chip-foto" data-ver-foto-nueva="1">' + ico('archivo', 's') +
+        'Remisión ' + cual + '</button><button type="button" class="chip mini" data-ll="foto">' + ico('camara', 's') + 'Cambiar</button></div>'
+      : '<button type="button" class="btn-foto" data-ll="foto">' + ico('camara') + 'Tomar foto</button>') +
+    errorCampo(err, 'foto') + '</div>';
+}
+
+function pintarSalida() {
+  const f = S.ll.f, err = S.ll.err;
+  const empresas = empresasLlenado();
+  let html = '<button type="button" class="volver" data-ll="volver">' + ico('atras', 's') + 'Lotes en llenado</button>';
+
+  html += '<div class="tarjeta"><div class="campo"><span class="etq">Empresa de llenado</span><div class="chips">' +
+    empresas.map(function(e) {
+      return '<button type="button" class="chip" data-ll-empresa="' + esc(e) + '" aria-pressed="' +
+        (!f.otraEmpresa && normal(e) === normal(f.empresa)) + '">' + esc(e) + '</button>';
+    }).join('') +
+    '<button type="button" class="chip mas" data-ll-empresa="" aria-pressed="' + f.otraEmpresa + '">+ Otra</button></div>' +
+    (f.otraEmpresa ? '<input class="entrada" data-ll-campo="empresa" placeholder="Nombre de la empresa" value="' + esc(f.empresa) + '" autocapitalize="words">' : '') +
+    errorCampo(err, 'empresa') + '</div>' +
+    '<div class="campo"><span class="etq">Gas</span><div class="chips">' +
+    S.cfg.gases.map(function(g) {
+      return '<button type="button" class="chip" data-ll-gas="' + esc(g) + '" aria-pressed="' + (normal(g) === normal(f.gas)) + '">' + esc(g) + '</button>';
+    }).join('') + '</div>' + errorCampo(err, 'gas') + '</div></div>';
+
+  html += '<div class="tarjeta"><div class="campo"><label class="etq" for="llFecha">Fecha de salida</label>' +
+    '<input id="llFecha" class="entrada" type="date" data-ll-campo="fecha" max="' + hoyISO() + '" value="' + esc(f.fecha) + '">' +
+    errorCampo(err, 'fecha') + '</div>' +
+    '<div class="campo"><label class="etq" for="llRem">Número de remisión</label>' +
+    '<input id="llRem" class="entrada" data-ll-campo="remision" inputmode="numeric" autocomplete="off" placeholder="134905" value="' + esc(f.remision) + '">' +
+    errorCampo(err, 'remision') + '</div></div>';
+
+  html += '<div class="tarjeta"><div class="campo"><span class="etq">Cilindros <em id="llCuenta"></em></span>' +
+    '<div id="llCilindros"></div>' + errorCampo(err, 'sel') + '</div></div>';
+
+  html += '<div class="tarjeta">' + bloqueFoto(f.foto, 'salida', err) + '</div>';
+  html += '<button type="button" class="btn prin" data-ll="guardarSalida">' + ico('check') + 'Registrar salida</button>';
+  $('vLlenado').innerHTML = html;
+  pintarSelCil();
+}
+
+function pintarSelCil() {
+  const f = S.ll.f;
+  const caja = $('llCilindros');
+  if (!caja) return;
+  $('llCuenta').textContent = f.sel.length ? f.sel.length + (f.sel.length === 1 ? ' seleccionado' : ' seleccionados') : '';
+  if (!f.gas) { caja.innerHTML = '<p class="ayuda">Elige el gas para ver los cilindros propios de ' + esc(S.sede) + '.</p>'; return; }
+  const todos = cilindrosParaSalida(f.gas);
+  if (!todos.length) {
+    caja.innerHTML = '<p class="ayuda">No hay cilindros propios de ' + esc(f.gas) + ' en ' + esc(S.sede) +
+      ' disponibles. Los que ya están en llenado no aparecen.</p>';
+    return;
+  }
+  const q = f.q.toUpperCase();
+  const lista = todos.filter(function(c) { return !q || String(c.serial).toUpperCase().indexOf(q) >= 0; });
+  const vacios = todos.filter(function(c) { return normal(c.contenido) === 'vacio'; }).length;
+  caja.innerHTML =
+    '<label class="buscar" style="margin-bottom:8px">' + ico('buscar') + '<span class="sr">Buscar serial</span>' +
+    '<input data-ll-campo="q" placeholder="Buscar serial" autocapitalize="characters" autocomplete="off" spellcheck="false" value="' + esc(f.q) + '"></label>' +
+    '<div class="chips" style="margin-bottom:8px">' +
+    (vacios ? '<button type="button" class="chip mini" data-ll="vacios">Todos los vacíos (' + vacios + ')</button>' : '') +
+    (f.sel.length ? '<button type="button" class="chip mini" data-ll="ninguno">Quitar todos</button>' : '') + '</div>' +
+    '<div class="sel-cil" role="group" aria-label="Cilindros">' + (lista.length ? lista.map(function(c) {
+      const s = String(c.serial).toUpperCase();
+      return '<button type="button" class="chip" data-ll-cil="' + esc(s) + '" aria-pressed="' + (f.sel.indexOf(s) >= 0) + '">' +
+        esc(s) + '<small>' + esc(c.contenido || '') + '</small></button>';
+    }).join('') : '<p class="ayuda">Ningún serial coincide.</p>') + '</div>';
+}
+
+function validarSalida() {
+  const f = S.ll.f, err = {};
+  if (!String(f.empresa).trim()) err.empresa = 'Elige la empresa de llenado.';
+  if (!f.gas) err.gas = 'Elige el gas.';
+  if (!f.fecha) err.fecha = 'Escribe la fecha de salida.';
+  else if (f.fecha > hoyISO()) err.fecha = 'La fecha no puede ser futura.';
+  if (!String(f.remision).trim()) err.remision = 'Escribe el número de la remisión.';
+  if (!f.sel.length) err.sel = 'Elige al menos un cilindro.';
+  if (!f.foto) err.foto = 'Toma la foto de la remisión de salida.';
+  S.ll.err = err;
+  return !Object.keys(err).length;
+}
+
+async function guardarSalida() {
+  if (!validarSalida()) { pintarLlenado(); irAlError(); return; }
+  const f = S.ll.f;
+  const l = {
+    id: nuevoId('L'), sede: S.sede, tecnico: S.tecnico, empresa: String(f.empresa).trim(), gas: f.gas,
+    fecha: f.fecha, remision: String(f.remision).trim(), seriales: f.sel.slice(), foto: f.foto
+  };
+  if (f.otraEmpresa) {
+    const usadas = ls('ic_empresas_llenado') || [];
+    if (!usadas.some(function(e) { return normal(e) === normal(l.empresa); })) { usadas.push(l.empresa); ls('ic_empresas_llenado', usadas); }
+  }
+  await encolar('salida', { l: l });
+  S.ll = null;
+  pintarLlenado();
+  window.scrollTo({ top: 0, behavior: DESPLAZA });
+  toast(ico('check', 's') + 'Salida registrada: ' + l.seriales.length + (l.seriales.length === 1 ? ' cilindro' : ' cilindros'));
+  sincronizar();
+}
+
+function irAlError() {
+  const e = document.querySelector('#vLlenado .error-campo:not(.oculto)');
+  if (e) e.scrollIntoView({ behavior: DESPLAZA, block: 'center' });
+}
+
+
+/* ---------- Regreso ---------- */
+
+function abrirLote(id) {
+  const lote = lotesCompletos().find(function(l) { return l.id === id; });
+  if (!lote) return;
+  S.ll = { tipo: 'lote', id: id, g: { fecha: hoyISO(), remision: '', foto: '', marca: {} }, err: {} };
+  pintarLlenado();
+  window.scrollTo(0, 0);
+}
+
+function cabLote(lote) {
+  const marcados = Object.keys((S.ll.g || {}).marca || {}).length;
+  const faltan = porLlegar(lote).length;
+  return '<div class="tarjeta cab-lote"><b>' + esc(lote.gas) + ' · ' + esc(lote.empresa) + ' · salió ' + fechaISO(lote.salida) + '</b>' +
+    '<small>' + lote.cil.length + (lote.cil.length === 1 ? ' cilindro' : ' cilindros') + ' · remisión ' + esc(lote.remSalida) +
+    (lote.tecnico ? ' · ' + esc(lote.tecnico) : '') + '</small>' + lineaDias(lote) +
+    (lote.estado !== 'Cerrado' ? '<small>' + marcados + ' de ' + faltan + ' marcados</small>' : '') +
+    '<div class="fila-foto" style="margin-top:6px">' + chipFoto(lote, 'salida') + chipFoto(lote, 'entrada') + '</div></div>';
+}
+
+function pintarRegreso(lote) {
+  const g = S.ll.g, err = S.ll.err;
+  const faltan = porLlegar(lote);
+  const llegados = lote.cil.filter(function(c) { return c.estado !== EN_LLENADO; });
+  let html = '<button type="button" class="volver" data-ll="volver">' + ico('atras', 's') + 'Lotes en llenado</button>';
+  html += cabLote(lote);
+  if (lote.pendiente && !lote.fotoSalida && !lote.regreso) {
+    html += '<p class="ayuda">' + ico('sinred', 's') + ' Esta salida aún no se ha subido. Puedes registrar el regreso igual; se suben en orden.</p>';
+  }
+  html += '<div class="tarjeta"><div class="campo"><span class="etq">Cilindros por llegar' +
+    '<button type="button" class="chip mini" data-ll="todos">Todos llegaron</button></span><div>' +
+    faltan.map(function(c) {
+      const m = g.marca[c.serial];
+      return '<div class="marca"><b>' + esc(c.serial) + '</b>' +
+        '<button type="button" class="chip" data-ll-marca="' + esc(c.serial) + '" data-v="si" aria-pressed="' + (m === 'si') + '">Llegó lleno</button>' +
+        '<button type="button" class="chip no" data-ll-marca="' + esc(c.serial) + '" data-v="no" aria-pressed="' + (m === 'no') + '">No llegó</button></div>';
+    }).join('') + '</div>' + errorCampo(err, 'marca') +
+    (llegados.length ? '<p class="ayuda">Ya llegaron antes: ' + llegados.map(function(c) { return esc(c.serial); }).join(', ') + '.</p>' : '') +
+    '</div></div>';
+  html += '<div class="tarjeta"><div class="campo"><label class="etq" for="llFechaR">Fecha de regreso</label>' +
+    '<input id="llFechaR" class="entrada" type="date" data-ll-campo="fecha" min="' + esc(lote.salida) + '" max="' + hoyISO() + '" value="' + esc(g.fecha) + '">' +
+    errorCampo(err, 'fecha') + '</div>' +
+    '<div class="campo"><label class="etq" for="llRemR">Número de remisión de entrada</label>' +
+    '<input id="llRemR" class="entrada" data-ll-campo="remision" inputmode="numeric" autocomplete="off" placeholder="135210" value="' + esc(g.remision) + '">' +
+    errorCampo(err, 'remision') + '</div>' + bloqueFoto(g.foto, 'entrada', err) + '</div>';
+  const algunoNo = faltan.some(function(c) { return g.marca[c.serial] === 'no'; });
+  html += '<button type="button" class="btn prin" data-ll="guardarRegreso">' + ico('check') +
+    (algunoNo ? 'Guardar regreso (queda abierto)' : 'Cerrar regreso') + '</button>';
+  $('vLlenado').innerHTML = html;
+}
+
+function validarRegreso(lote) {
+  const g = S.ll.g, err = {};
+  const faltan = porLlegar(lote);
+  const sinMarcar = faltan.filter(function(c) { return !g.marca[c.serial]; });
+  if (sinMarcar.length) err.marca = 'Marca cada cilindro. Faltan: ' + sinMarcar.map(function(c) { return c.serial; }).join(', ') + '.';
+  else if (!faltan.some(function(c) { return g.marca[c.serial] === 'si'; })) err.marca = 'Marca al menos uno como "Llegó lleno".';
+  if (!g.fecha) err.fecha = 'Escribe la fecha de regreso.';
+  else if (g.fecha > hoyISO()) err.fecha = 'La fecha no puede ser futura.';
+  else if (g.fecha < lote.salida) err.fecha = 'No puede ser antes de la salida (' + fechaISO(lote.salida) + ').';
+  if (!String(g.remision).trim()) err.remision = 'Escribe el número de la remisión de entrada.';
+  if (!g.foto) err.foto = 'Toma la foto de la remisión de entrada.';
+  S.ll.err = err;
+  return !Object.keys(err).length;
+}
+
+async function guardarRegreso() {
+  const lote = lotesCompletos().find(function(l) { return l.id === S.ll.id; });
+  if (!lote) return;
+  if (!validarRegreso(lote)) { pintarLlenado(); irAlError(); return; }
+  const g = S.ll.g;
+  const faltan = porLlegar(lote);
+  const datos = {
+    id: nuevoId('G'), lote: lote.id, tecnico: S.tecnico, fecha: g.fecha, remision: String(g.remision).trim(), foto: g.foto,
+    llegaron: faltan.filter(function(c) { return g.marca[c.serial] === 'si'; }).map(function(c) { return c.serial; }),
+    noLlegaron: faltan.filter(function(c) { return g.marca[c.serial] === 'no'; }).map(function(c) { return c.serial; })
+  };
+  await encolar('regreso', { g: datos });
+  S.ll = null;
+  pintarLlenado();
+  window.scrollTo({ top: 0, behavior: DESPLAZA });
+  toast(ico('check', 's') + (datos.noLlegaron.length
+    ? 'Regreso guardado. Siguen en llenado: ' + datos.noLlegaron.length
+    : 'Regreso cerrado: ' + datos.llegaron.length + ' llenos'));
+  sincronizar();
+}
+
+function pintarDetalle(lote) {
+  let html = '<button type="button" class="volver" data-ll="volver">' + ico('atras', 's') + 'Lotes en llenado</button>';
+  html += cabLote(lote);
+  html += '<div class="tarjeta"><div class="campo"><span class="etq">Cilindros <em>regreso ' + fechaISO(lote.regreso) +
+    ' · rem. ' + esc(lote.remEntrada) + '</em></span><div>' +
+    lote.cil.map(function(c) {
+      return '<div class="marca"><b>' + esc(c.serial) + '</b><span class="estado ok">' + esc(c.estado) +
+        (c.regreso ? ' · ' + fechaISO(c.regreso) : '') + '</span></div>';
+    }).join('') + '</div></div></div>';
+  $('vLlenado').innerHTML = html;
+}
+
+
+/* ---------- Fotos ---------- */
+
+/** Reduce la foto a máx. 1600 px y JPEG para que suba rápido. */
+function comprimirFoto(archivo) {
+  return new Promise(function(resolve, reject) {
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onload = function() {
+      const escala = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * escala);
+      c.height = Math.round(img.naturalHeight * escala);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('No se pudo leer la foto.')); };
+    img.src = url;
+  });
+}
+
+function abrirVisor(titulo, contenido) {
+  $('visorTit').textContent = titulo;
+  $('visorImg').innerHTML = contenido;
+  $('visor').classList.remove('oculto');
+  $('visorCerrar').focus();
+}
+
+function cerrarVisor() {
+  $('visor').classList.add('oculto');
+  $('visorImg').innerHTML = '';
+}
+
+async function verFotoLote(idLote, cual) {
+  const lote = lotesCompletos().find(function(l) { return l.id === idLote; });
+  if (!lote) return;
+  const titulo = 'Remisión de ' + cual + ' ' + (cual === 'salida' ? lote.remSalida : lote.remEntrada);
+  const local = cual === 'salida' ? lote.fotoLocalSalida : lote.fotoLocalEntrada;
+  const id = cual === 'salida' ? lote.fotoSalida : lote.fotoEntrada;
+  if (local) { abrirVisor(titulo, '<img alt="' + esc(titulo) + '" src="' + local + '">'); return; }
+  const guardada = await leerDato('foto_' + id);
+  if (guardada) { abrirVisor(titulo, '<img alt="' + esc(titulo) + '" src="' + guardada + '">'); return; }
+  abrirVisor(titulo, '<p>Cargando la foto…</p>');
+  try {
+    const r = await llamar('foto', { id: id }, 60000);
+    await guardarDato('foto_' + id, r.foto);
+    if (!$('visor').classList.contains('oculto')) $('visorImg').innerHTML = '<img alt="' + esc(titulo) + '" src="' + r.foto + '">';
+  } catch (e) {
+    $('visorImg').innerHTML = '<p>' + esc(e.sinRed ? 'Sin señal. La foto se puede ver cuando vuelva la conexión.' : e.message) + '</p>';
+  }
+}
+
+
+/* ---------- Eventos ---------- */
+
+function eventosLlenado() {
+  const v = $('vLlenado');
+  v.addEventListener('click', function(e) {
+    const t = e.target;
+    const foto = t.closest('[data-foto-lote]');
+    if (foto) { verFotoLote(foto.dataset.fotoLote, foto.dataset.fotoCual); return; }
+    if (t.closest('[data-ver-foto-nueva]')) {
+      const d = S.ll.tipo === 'salida' ? S.ll.f : S.ll.g;
+      abrirVisor('Foto de la remisión', '<img alt="Remisión" src="' + d.foto + '">');
+      return;
+    }
+    const abrir = t.closest('[data-lote]');
+    if (abrir) { abrirLote(abrir.dataset.lote); return; }
+    const emp = t.closest('[data-ll-empresa]');
+    if (emp) {
+      const f = S.ll.f;
+      f.otraEmpresa = !emp.dataset.llEmpresa;
+      f.empresa = emp.dataset.llEmpresa;
+      delete S.ll.err.empresa;
+      pintarSalida();
+      if (f.otraEmpresa) v.querySelector('[data-ll-campo="empresa"]').focus();
+      return;
+    }
+    const gas = t.closest('[data-ll-gas]');
+    if (gas) {
+      if (normal(S.ll.f.gas) !== normal(gas.dataset.llGas)) { S.ll.f.sel = []; S.ll.f.q = ''; }
+      S.ll.f.gas = gas.dataset.llGas;
+      delete S.ll.err.gas;
+      pintarSalida();
+      return;
+    }
+    const cil = t.closest('[data-ll-cil]');
+    if (cil) {
+      const sel = S.ll.f.sel, s = cil.dataset.llCil, i = sel.indexOf(s);
+      if (i >= 0) sel.splice(i, 1); else sel.push(s);
+      cil.setAttribute('aria-pressed', i < 0);
+      $('llCuenta').textContent = sel.length ? sel.length + (sel.length === 1 ? ' seleccionado' : ' seleccionados') : '';
+      if (sel.length) quitarError('sel');
+      return;
+    }
+    const marca = t.closest('[data-ll-marca]');
+    if (marca) {
+      S.ll.g.marca[marca.dataset.llMarca] = marca.dataset.v;
+      delete S.ll.err.marca;
+      conservarScroll(pintarLlenado);
+      return;
+    }
+    const b = t.closest('[data-ll]');
+    if (!b) return;
+    switch (b.dataset.ll) {
+      case 'nueva': nuevaSalida(); break;
+      case 'volver': S.ll = null; pintarLlenado(); window.scrollTo(0, 0); break;
+      case 'foto': $('entradaFoto').value = ''; $('entradaFoto').click(); break;
+      case 'guardarSalida': guardarSalida(); break;
+      case 'guardarRegreso': guardarRegreso(); break;
+      case 'vacios':
+        cilindrosParaSalida(S.ll.f.gas).forEach(function(c) {
+          const s = String(c.serial).toUpperCase();
+          if (normal(c.contenido) === 'vacio' && S.ll.f.sel.indexOf(s) < 0) S.ll.f.sel.push(s);
+        });
+        quitarError('sel');
+        pintarSelCil();
+        break;
+      case 'ninguno': S.ll.f.sel = []; pintarSelCil(); break;
+      case 'todos': {
+        const lote = lotesCompletos().find(function(l) { return l.id === S.ll.id; });
+        porLlegar(lote).forEach(function(c) { S.ll.g.marca[c.serial] = 'si'; });
+        delete S.ll.err.marca;
+        conservarScroll(pintarLlenado);
+        break;
+      }
+    }
+  });
+
+  // Campos de texto y fecha: se guardan sin volver a pintar (no se pierde el foco)
+  v.addEventListener('input', function(e) {
+    const campo = e.target.dataset.llCampo;
+    if (!campo || !S.ll) return;
+    const d = S.ll.tipo === 'salida' ? S.ll.f : S.ll.g;
+    d[campo] = campo === 'q' ? e.target.value.toUpperCase() : e.target.value;
+    if (campo === 'q') {
+      const pos = e.target.selectionStart;
+      pintarSelCil();
+      const nuevo = v.querySelector('[data-ll-campo="q"]');
+      nuevo.focus();
+      try { nuevo.setSelectionRange(pos, pos); } catch (err) { /* nada */ }
+      return;
+    }
+    quitarError(campo);
+  });
+
+  $('entradaFoto').addEventListener('change', async function() {
+    const archivo = this.files && this.files[0];
+    if (!archivo || !S.ll) return;
+    toast(ico('camara', 's') + 'Preparando la foto…');
+    try {
+      const foto = await comprimirFoto(archivo);
+      (S.ll.tipo === 'salida' ? S.ll.f : S.ll.g).foto = foto;
+      delete S.ll.err.foto;
+      conservarScroll(pintarLlenado);
+      toast(ico('check', 's') + 'Foto lista');
+    } catch (e) {
+      toast(ico('alerta', 's') + esc(e.message));
+    }
+  });
+
+  $('visorCerrar').onclick = cerrarVisor;
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !$('visor').classList.contains('oculto')) cerrarVisor();
+  });
+}
+
+function quitarError(campo) {
+  if (!S.ll || !S.ll.err[campo]) return;
+  delete S.ll.err[campo];
+  const p = document.querySelector('[data-ll-error="' + campo + '"]');
+  if (p) { p.classList.add('oculto'); p.innerHTML = ''; }
+}
+
+function conservarScroll(fn) {
+  const y = window.scrollY;
+  fn();
+  window.scrollTo(0, y);
+}
+
+
+/***********************
  * NAVEGACIÓN Y PANTALLAS
  ***********************/
 
@@ -903,12 +1498,17 @@ function irA(vista) {
   S.vista = vista;
   $('vRegistrar').classList.toggle('oculto', vista !== 'registrar');
   $('vInventario').classList.toggle('oculto', vista !== 'inventario');
+  $('vLlenado').classList.toggle('oculto', vista !== 'llenado');
   $('barraGuardar').classList.toggle('oculto', vista !== 'registrar');
   $('navRegistrar').setAttribute('aria-current', vista === 'registrar' ? 'page' : 'false');
   $('navInventario').setAttribute('aria-current', vista === 'inventario' ? 'page' : 'false');
+  $('navLlenado').setAttribute('aria-current', vista === 'llenado' ? 'page' : 'false');
+  pintarPuntoLlenado();
   if (vista === 'inventario') {
     if (S.filtroSede === undefined) S.filtroSede = S.sede;
     pintarInventario();
+  } else if (vista === 'llenado') {
+    pintarLlenado();
   } else {
     pintarFormulario();
   }
@@ -1097,6 +1697,8 @@ function eventos() {
   // Navegación
   $('navRegistrar').onclick = function() { irA('registrar'); };
   $('navInventario').onclick = function() { irA('inventario'); };
+  $('navLlenado').onclick = function() { if (S.vista === 'llenado') S.ll = null; irA('llenado'); };
+  eventosLlenado();
 
   // Inventario
   $('buscar').addEventListener('input', function() {
@@ -1206,6 +1808,7 @@ async function iniciar() {
   if (cfg) S.cfg = Object.assign({}, CFG_INICIAL, cfg);
   S.inv = (await leerDato('inv')) || [];
   S.cola = (await leerDato('cola')) || [];
+  S.lotes = (await leerDato('lotes')) || [];
   const turno = ls('ic_turno');
   if (turno) { S.sede = turno.sede; S.tecnico = turno.tecnico; S.filtroSede = turno.sede; }
 
@@ -1233,7 +1836,7 @@ async function iniciar() {
 /** Recarga la app para usar la versión nueva, sin perder lo que se está escribiendo. */
 function recargarSiSePuede() {
   if (!S.versionNueva) return;
-  const aMedias = $('fSerial').value.trim() || $('fPH').value.trim() || $('fObs').value.trim() || S.corrigiendo;
+  const aMedias = $('fSerial').value.trim() || $('fPH').value.trim() || $('fObs').value.trim() || S.corrigiendo || S.ll;
   if (aMedias) return;
   S.versionNueva = false;
   location.reload();
