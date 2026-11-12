@@ -15,7 +15,10 @@
  * que implementa el script (cilindrocrc).
  *
  * La PWA llama por POST con { accion, codigo, ... }.
- * Acciones: validar, config, registrar, salida, regreso, foto.
+ * Acciones: validar, config, registrar, salida, regreso, foto, borrar.
+ *
+ * Borrar no elimina filas: las marca en la columna "Borrado" de
+ * Registros e Inventario actual, y la app deja de mostrarlas.
  *****************************************************************/
 
 const HOJA_REG = 'Registros';
@@ -56,6 +59,7 @@ function doPost(e) {
       case 'salida':    return responder(salida(datos.l));
       case 'regreso':   return responder(regreso(datos.g));
       case 'foto':      return responder(leerFoto(datos.id));
+      case 'borrar':    return responder(borrar(datos, cfg));
       default:          return responder({ ok: false, error: 'Acción desconocida.' });
     }
   } catch (err) {
@@ -103,13 +107,15 @@ function leerConfig() {
     pintura: lista('Pintura'),
     contenido: lista('Contenido'),
     aniosPH: anios > 0 ? anios : 5,
-    codigo: lista('Código de acceso')[0] || ''
+    codigo: lista('Código de acceso')[0] || '',
+    codigoAdmin: lista('Código de administrador')[0] || ''
   };
 }
 
 function configPublica(cfg) {
   const c = Object.assign({}, cfg);
   delete c.codigo;
+  delete c.codigoAdmin;
   delete c.cab;
   return c;
 }
@@ -227,7 +233,10 @@ function registrar(r, cfg) {
     }
 
     // Un serial solo se registra una vez por día; una corrección reemplaza al de hoy
-    const anterior = fila ? inv.getRange(fila, 14).getValue() : '';
+    // Un cilindro borrado se registra como nuevo
+    const borrado = fila && inv.getLastColumn() >= COL_BORRADO && String(inv.getRange(fila, COL_BORRADO).getValue()).trim();
+    if (borrado) cuenta = 0;
+    const anterior = fila && !borrado ? inv.getRange(fila, 14).getValue() : '';
     let esCorreccion = false;
     if (anterior instanceof Date) {
       const tz = Session.getScriptTimeZone();
@@ -266,6 +275,7 @@ function registrar(r, cfg) {
       inv.getRange(fila, 9, 1, 8).setValues([[
         r.valvula, r.pintura, r.contenido, obs, r.tecnico, fecha, cuenta + 1, r.id
       ]]);
+      if (inv.getLastColumn() >= COL_BORRADO) inv.getRange(fila, COL_BORRADO).clearContent();
     }
 
     recordarEnConfig(cfg, 'Propietarios', r.propietario);
@@ -295,9 +305,12 @@ function marcarCorregido(reg, idViejo, idNuevo) {
 function leerInventario() {
   const inv = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_INV);
   if (inv.getLastRow() < 2) return [];
-  const filas = inv.getRange(2, 1, inv.getLastRow() - 1, 16).getValues();
+  const ancho = Math.max(inv.getLastColumn(), 16);
+  const filas = inv.getRange(2, 1, inv.getLastRow() - 1, ancho).getValues();
   const tz = Session.getScriptTimeZone();
-  return filas.filter(function(f) { return String(f[0]).trim(); }).map(function(f) {
+  return filas.filter(function(f) {
+    return String(f[0]).trim() && !String(f[COL_BORRADO - 1] || '').trim();
+  }).map(function(f) {
     return {
       serial: String(f[0]), sede: f[1], propietario: f[2], gas: f[3], capacidad: String(f[4]),
       ph: String(f[5]), vence: String(f[6]), valvula: f[8], pintura: f[9], contenido: f[10],
@@ -575,4 +588,85 @@ function prepararLlenados() {
   hojaConCabecera(HOJA_LOT, CAB_LOT);
   hojaConCabecera(HOJA_LDET, CAB_LDET);
   Logger.log('Carpeta de remisiones: ' + carpetaFotos().getUrl());
+}
+
+
+/***********************
+ * BORRAR (solo administrador)
+ ***********************/
+
+const COL_BORRADO = 17;   // columna "Borrado" en Registros e Inventario actual
+
+function columnaBorrado(hoja) {
+  if (String(hoja.getRange(1, COL_BORRADO).getValue()).trim() !== 'Borrado') {
+    hoja.getRange(1, COL_BORRADO).setValue('Borrado').setFontWeight('bold');
+  }
+}
+
+/** Es un registro hecho en la app (no historial de llenado) que sigue vigente. */
+function registroVigente(f) {
+  const origen = String(f[15] || '');
+  return f[0] && origen.indexOf('PWA') === 0 && !String(f[COL_BORRADO - 1] || '').trim() &&
+    origen.indexOf('Corregido') < 0;
+}
+
+/**
+ * datos: { admin, serial, modo: 'ultimo' | 'cilindro', tecnico }
+ * - ultimo: marca el último registro y el cilindro vuelve al registro anterior
+ *           (si no hay anterior, sale del inventario).
+ * - cilindro: marca todos sus registros y el cilindro sale del inventario.
+ */
+function borrar(datos, cfg) {
+  if (!cfg.codigoAdmin) {
+    return { ok: false, codigo: 'ADMIN', error: 'Falta el código de administrador en la pestaña Config de la hoja.' };
+  }
+  if (String(datos.admin || '').trim() !== cfg.codigoAdmin) {
+    return { ok: false, codigo: 'ADMIN', error: 'Código de administrador incorrecto.' };
+  }
+  const serial = String(datos.serial || '').trim().toUpperCase();
+  if (!serial) return { ok: false, error: 'Falta el serial.' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const libro = SpreadsheetApp.getActiveSpreadsheet();
+    const reg = libro.getSheetByName(HOJA_REG);
+    const inv = libro.getSheetByName(HOJA_INV);
+    columnaBorrado(reg);
+    columnaBorrado(inv);
+    const filaInv = buscarFila(inv, 1, serial);
+    if (!filaInv || String(inv.getRange(filaInv, COL_BORRADO).getValue()).trim()) {
+      return { ok: false, error: serial + ' no está en el inventario.' };
+    }
+    const tz = Session.getScriptTimeZone();
+    const marca = 'Borrado por ' + (datos.tecnico || 'administrador') + ', ' +
+      Utilities.formatDate(new Date(), tz, 'dd/MM/yyyy h:mm a');
+
+    // Registros de este serial, del más nuevo al más viejo
+    const filas = reg.getLastRow() > 1 ? reg.getRange(2, 1, reg.getLastRow() - 1, COL_BORRADO).getValues() : [];
+    const delSerial = [];
+    filas.forEach(function(f, i) {
+      if (String(f[7]).trim().toUpperCase() === serial) delSerial.push({ fila: i + 2, v: f });
+    });
+    const vigentes = delSerial.filter(function(x) { return registroVigente(x.v); })
+      .sort(function(a, b) { return (b.v[1] instanceof Date ? b.v[1] : 0) - (a.v[1] instanceof Date ? a.v[1] : 0); });
+
+    if (datos.modo === 'ultimo' && vigentes.length > 1) {
+      reg.getRange(vigentes[0].fila, COL_BORRADO).setValue(marca);
+      const p = vigentes[1].v;   // registro anterior: el cilindro vuelve a este estado
+      inv.getRange(filaInv, 1, 1, 7).setValues([[serial, p[2], p[4], p[5], p[6], p[8], p[9]]]);
+      inv.getRange(filaInv, 8).setFormula(formulaEstado(filaInv));
+      inv.getRange(filaInv, 9, 1, 8).setValues([[p[11], p[12], p[13], p[14], p[3], p[1], vigentes.length - 1, p[0]]]);
+      return { ok: true, quedo: 'anterior' };
+    }
+
+    // Cilindro completo (o el último era su único registro)
+    delSerial.forEach(function(x) {
+      if (!String(x.v[COL_BORRADO - 1] || '').trim()) reg.getRange(x.fila, COL_BORRADO).setValue(marca);
+    });
+    inv.getRange(filaInv, COL_BORRADO).setValue(marca);
+    return { ok: true, quedo: 'fuera' };
+  } finally {
+    lock.releaseLock();
+  }
 }

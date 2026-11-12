@@ -868,7 +868,7 @@ function pintarInventario() {
     return;
   }
   $('lista').innerHTML = lista.slice(0, 300).map(function(c) {
-    return '<button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
+    return '<div class="fila-c"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
       '<div class="txt"><b>' + esc(c.serial) + '</b><small>' +
       esc([c.gas, c.capacidad, c.propietario].filter(Boolean).join(' · ')) + '</small><small>' +
       (c.pendiente ? ico('sinred', 's') + ' Sin subir · ' : '') +
@@ -876,7 +876,8 @@ function pintarInventario() {
       '</small></div><div class="der">' +
       '<span class="estado vino">' + esc(c.contenido || '') + '</span>' +
       (c.est ? '<span class="estado ' + claseEstado(c.est) + '">' + (c.est === 'Vencida' ? 'Venció ' : 'Vence ') + esc(c.vence || calcularVence(c.ph)) + '</span>' : '') +
-      '</div></button>';
+      '</div></button><button type="button" class="papelera" data-borrar="' + esc(c.serial) +
+      '" aria-label="Borrar ' + esc(c.serial) + '">' + ico('papelera') + '</button></div>';
   }).join('') + (lista.length > 300
     ? '<p class="ayuda" style="padding:12px 14px">Mostrando 300 de ' + lista.length + '. Busca por serial para ver los demás.</p>'
     : '');
@@ -1491,6 +1492,89 @@ function conservarScroll(fn) {
 
 
 /***********************
+ * BORRAR (solo administrador)
+ * Pide el código de administrador cada vez; no se guarda en el celular.
+ ***********************/
+
+let borrarSerial = '', borrarModo = '';
+
+function abrirBorrar(serial) {
+  const c = inventarioCompleto().find(function(x) { return String(x.serial).toUpperCase() === String(serial).toUpperCase(); });
+  if (!c) return;
+  if (c.pendiente) {
+    toast(ico('alerta', 's') + 'Ese registro aún no se ha subido. Espera a que suba para borrarlo.');
+    return;
+  }
+  borrarSerial = c.serial;
+  const n = c.registros || 1;
+  borrarModo = n > 1 ? 'ultimo' : 'cilindro';
+  $('borrarTit').textContent = 'Borrar en ' + c.serial;
+  const quien = [fechaCorta(c.fecha), c.tecnico].filter(Boolean).join(' · ');
+  $('borrarOpciones').innerHTML =
+    (n > 1 ? '<button type="button" class="opcion" data-modo="ultimo"><b>Solo el último registro</b><span>' + esc(quien) +
+      '. El cilindro vuelve a como estaba antes.</span></button>' : '') +
+    '<button type="button" class="opcion" data-modo="cilindro"><b>El cilindro completo</b><span>Sale del inventario' +
+    (n > 1 ? ' con sus ' + n + ' registros' : ' (tiene un solo registro: ' + esc(quien) + ')') + '.</span></button>';
+  pintarModoBorrar();
+  $('codigoAdmin').value = '';
+  $('avisoBorrar').innerHTML = '';
+  $('capaBorrar').classList.remove('oculto');
+  setTimeout(function() { $('codigoAdmin').focus(); }, 50);
+}
+
+function pintarModoBorrar() {
+  document.querySelectorAll('#borrarOpciones [data-modo]').forEach(function(b) {
+    b.setAttribute('aria-pressed', b.dataset.modo === borrarModo);
+  });
+}
+
+function cerrarBorrar() {
+  $('capaBorrar').classList.add('oculto');
+  $('codigoAdmin').value = '';
+  borrarSerial = '';
+}
+
+async function confirmarBorrar() {
+  const admin = $('codigoAdmin').value.trim();
+  const aviso = $('avisoBorrar');
+  if (!admin) { aviso.innerHTML = ico('alerta', 's') + 'Escribe el código de administrador.'; return; }
+  if (!navigator.onLine) { aviso.innerHTML = ico('alerta', 's') + 'Para borrar se necesita señal.'; return; }
+  const btn = $('btnConfirmarBorrar');
+  btn.disabled = true;
+  btn.textContent = 'Borrando…';
+  const serial = borrarSerial, modo = borrarModo;
+  try {
+    const r = await llamar('borrar', { admin: admin, serial: serial, modo: modo, tecnico: S.tecnico }, 45000);
+    cerrarBorrar();
+    toast(ico('check', 's') + (r.quedo === 'anterior'
+      ? 'Último registro de ' + esc(serial) + ' borrado'
+      : esc(serial) + ' salió del inventario'));
+    sincronizar();
+  } catch (e) {
+    aviso.innerHTML = ico('alerta', 's') + esc(e.sinRed ? 'Sin conexión con el servidor. Intenta de nuevo.' : e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = ico('papelera') + 'Borrar';
+  }
+}
+
+function eventosBorrar() {
+  $('borrarOpciones').addEventListener('click', function(e) {
+    const b = e.target.closest('[data-modo]');
+    if (b) { borrarModo = b.dataset.modo; pintarModoBorrar(); }
+  });
+  $('btnCancelarBorrar').onclick = cerrarBorrar;
+  $('btnConfirmarBorrar').onclick = confirmarBorrar;
+  $('codigoAdmin').addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmarBorrar(); });
+  $('codigoAdmin').addEventListener('input', function() { $('avisoBorrar').innerHTML = ''; });
+  $('capaBorrar').addEventListener('click', function(e) { if (e.target === this) cerrarBorrar(); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !$('capaBorrar').classList.contains('oculto')) cerrarBorrar();
+  });
+}
+
+
+/***********************
  * NAVEGACIÓN Y PANTALLAS
  ***********************/
 
@@ -1707,6 +1791,8 @@ function eventos() {
   });
   $('limpiarBuscar').onclick = function() { $('buscar').value = ''; pintarInventario(); $('buscar').focus(); };
   $('vInventario').addEventListener('click', function(e) {
+    const papelera = e.target.closest('[data-borrar]');
+    if (papelera) { abrirBorrar(papelera.dataset.borrar); return; }
     const s = e.target.closest('[data-sede]');
     const est = e.target.closest('[data-estado]');
     const gas = e.target.closest('[data-gas]');
@@ -1741,6 +1827,7 @@ function eventos() {
   });
 
   $('btnTerminar').onclick = terminar;
+  eventosBorrar();
 
   // Instalar la app
   window.addEventListener('beforeinstallprompt', function(e) {

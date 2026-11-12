@@ -16,6 +16,8 @@ Gases: oxígeno, nitrógeno, dioxicarbomed, oxígeno portátil y aire, con opci�
   (un cilindro por fila). Fotos de remisiones en la carpeta "Inventario de cilindros - Remisiones" de cilindrocrc,
   puestas en la hoja como chip de Drive (servicio avanzado Google Sheets API; si falta, queda un enlace "Remisión").
   Alerta cuando un lote pasa de 14 días afuera. Regreso cilindro por cilindro; los que no llegan dejan el lote abierto.
+- Borrar (papelera en cada cilindro del Inventario): solo con el "Código de administrador" de Config, que se pide
+  cada vez. No elimina filas: marca la columna "Borrado" de Registros e Inventario actual.
 - Técnicos, empresas, gases, capacidades y años de la prueba hidrostática se cambian en la pestaña `Config`.
 
 ## Reglas que no se cambian
