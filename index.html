@@ -341,7 +341,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
     <div id="franja" class="franja oculto" role="status"></div>
 
     <!-- Registrar -->
-    <main id="vRegistrar" class="cuerpo">
+    <main id="vRegistrar" class="cuerpo oculto">
       <div id="bannerInstalar" class="instalar oculto">
         <div class="fila-inst">
           <img src="icon-192.png" alt="">
@@ -422,7 +422,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
     </main>
 
     <!-- Inventario -->
-    <main id="vInventario" class="cuerpo oculto">
+    <main id="vInventario" class="cuerpo">
       <label class="buscar">
         <svg class="i"><use href="#i-buscar"/></svg>
         <span class="sr">Buscar serial</span>
@@ -440,7 +440,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
     <!-- Salidas a llenado -->
     <main id="vLlenado" class="cuerpo oculto"></main>
 
-    <div id="barraGuardar" class="barra">
+    <div id="barraGuardar" class="barra oculto">
       <div class="dentro">
         <button id="btnGuardar" class="btn">Guardar</button>
         <button id="btnSiguiente" class="btn prin"><svg class="i"><use href="#i-check"/></svg>Guardar y siguiente</button>
@@ -449,9 +449,9 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
 
     <nav class="nav" aria-label="Secciones">
       <div class="dentro">
-        <button id="navRegistrar" aria-current="page"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
-        <button id="navInventario"><svg class="i"><use href="#i-lista"/></svg>Inventario<span id="puntoInventario" class="punto oculto"></span></button>
+        <button id="navInventario" aria-current="page"><svg class="i"><use href="#i-lista"/></svg>Inventario<span id="puntoInventario" class="punto oculto"></span></button>
         <button id="navLlenado"><svg class="i"><use href="#i-camion"/></svg>Llenado<span id="puntoLlenado" class="punto oculto"></span></button>
+        <button id="navRegistrar"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
       </div>
     </nav>
   </div>

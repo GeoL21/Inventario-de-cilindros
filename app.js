@@ -184,7 +184,7 @@ const S = {
   cola: [],         // registros sin subir
   sede: '',
   tecnico: '',
-  vista: 'registrar',
+  vista: 'inventario',   // la app abre en Inventario
   f: {},            // selección del formulario
   otro: { propietario: false, gas: false },
   filtroSede: '',
