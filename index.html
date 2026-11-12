@@ -86,6 +86,7 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .estado.alerta{background:var(--alerta-suave);color:var(--alerta-txt)}
 .estado.rojo{background:var(--rojo-suave);color:var(--rojo-txt)}
 .estado.vino{background:var(--vino-suave);color:var(--vino)}
+.estado.gris{background:#F3F1F2;color:var(--suave);border:1px dashed #C9BFC3;padding:3px 9px}
 
 .aviso-serial{border:1px solid var(--alerta-linea);background:var(--alerta-suave);color:var(--alerta-txt);border-radius:12px;padding:10px 12px;font-size:14px;display:flex;flex-direction:column;gap:8px}
 .aviso-serial b{font-weight:800}
@@ -161,10 +162,12 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .tit-gas{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:12px 14px 8px}
 .tit-gas b{font-size:15px;font-weight:800}
 .tit-gas small{font-size:12px;color:var(--suave)}
-.gas{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;align-items:center;width:100%;border:0;border-top:1px solid var(--linea-suave);background:none;text-align:left;padding:10px 14px;min-height:56px}
+.gas{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:12px;align-items:center;width:100%;border:0;border-top:1px solid var(--linea-suave);background:none;text-align:left;padding:10px 14px;min-height:56px}
 .gas .nom{font-size:15px;font-weight:700;grid-column:1;grid-row:1}
 .gas .det{font-size:13px;color:var(--suave);grid-column:1;grid-row:2}
-.gas .tot{grid-column:2;grid-row:1/3;font-size:24px;font-weight:800;color:var(--vino);font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+.gas .est-gas{grid-column:1;grid-row:3;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.gas .est-gas .estado{font-size:12px;padding:2px 8px}
+.gas .tot{grid-column:2;grid-row:1/4;font-size:24px;font-weight:800;color:var(--vino);font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
 .gas[aria-pressed="true"]{background:var(--vino);color:#fff}
 .gas[aria-pressed="true"] .det,.gas[aria-pressed="true"] .tot{color:#fff}
 .gas:active{background:var(--vino-suave)}

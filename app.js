@@ -851,11 +851,13 @@ function pintarInventario() {
     vacio: deGas.filter(function(c) { return normal(c.contenido) === 'vacio'; }).length,
     vencida: deGas.filter(function(c) { return c.est === 'Vencida'; }).length,
     porvencer: deGas.filter(function(c) { return c.est === 'Por vencer'; }).length,
+    gasvig: deGas.filter(function(c) { return c.gasEst === 'Vigente'; }).length,
     gaspor: deGas.filter(function(c) { return c.gasEst === 'Por vencer'; }).length,
-    gasven: deGas.filter(function(c) { return c.gasEst === 'Vencido'; }).length
+    gasven: deGas.filter(function(c) { return c.gasEst === 'Vencido'; }).length,
+    gassin: deGas.filter(function(c) { return c.gasEst === 'Sin fecha'; }).length
   };
   const filtros = [['todos', S.filtroGas ? 'Todos los de ' + S.filtroGas : 'Todos'], ['lleno', 'Llenos'], ['vacio', 'Vacíos'],
-    ['gaspor', 'Gas por vencer'], ['gasven', 'Gas vencido'], ['vencida', 'PH vencida'], ['porvencer', 'PH por vencer']];
+    ['gasvig', 'Gas vigente'], ['gaspor', 'Gas por vencer'], ['gasven', 'Gas vencido'], ['gassin', 'Gas sin fecha'], ['vencida', 'PH vencida'], ['porvencer', 'PH por vencer']];
   $('filtroEstado').innerHTML = filtros.map(function(f) {
     return '<button type="button" class="chip mini" data-estado="' + f[0] + '" aria-pressed="' +
       (S.filtroEstado === f[0]) + '">' + esc(f[1]) + ' <span class="n">' + cuentaGas[f[0]] + '</span></button>';
@@ -870,6 +872,8 @@ function pintarInventario() {
       case 'vacio': return normal(c.contenido) === 'vacio';
       case 'vencida': return c.est === 'Vencida';
       case 'porvencer': return c.est === 'Por vencer';
+      case 'gasvig': return c.gasEst === 'Vigente';
+      case 'gassin': return c.gasEst === 'Sin fecha';
       case 'gaspor': return c.gasEst === 'Por vencer';
       case 'gasven': return c.gasEst === 'Vencido';
       default: return true;
@@ -893,9 +897,7 @@ function pintarInventario() {
       esc((S.filtroSede ? '' : c.sede + ' · ') + fechaCorta(c.fecha) + (c.tecnico ? ' · ' + c.tecnico : '')) +
       '</small></div><div class="der">' +
       '<span class="estado vino">' + esc(c.contenido || '') + '</span>' +
-      (c.gasEst === 'Vencido' || c.gasEst === 'Por vencer'
-        ? '<span class="estado ' + (c.gasEst === 'Vencido' ? 'rojo' : 'alerta') + '">Gas ' +
-          (c.gasEst === 'Vencido' ? 'venció ' : 'vence ') + esc(c.venceGas) + '</span>' : '') +
+      etiquetaGas(c) +
       (c.est ? '<span class="estado ' + claseEstado(c.est) + '">' + (c.est === 'Vencida' ? 'PH venció ' : 'PH vence ') + esc(c.vence || calcularVence(c.ph)) + '</span>' : '') +
       '</div></button><button type="button" class="papelera" data-borrar="' + esc(c.serial) +
       '" aria-label="Borrar ' + esc(c.serial) + '">' + ico('papelera') + '</button></div>';
@@ -910,10 +912,14 @@ function pintarPorGas(cilindros) {
   const grupos = {};
   cilindros.forEach(function(c) {
     const k = normal(c.gas) || '-';
-    if (!grupos[k]) grupos[k] = { gas: c.gas || 'Sin gas', total: 0, lleno: 0, vacio: 0 };
+    if (!grupos[k]) grupos[k] = { gas: c.gas || 'Sin gas', total: 0, lleno: 0, vacio: 0, vig: 0, por: 0, ven: 0, sin: 0 };
     const g = grupos[k];
     g.total++;
     if (normal(c.contenido) === 'lleno') g.lleno++;
+    if (c.gasEst === 'Vigente') g.vig++;
+    if (c.gasEst === 'Por vencer') g.por++;
+    if (c.gasEst === 'Vencido') g.ven++;
+    if (c.gasEst === 'Sin fecha') g.sin++;
     if (normal(c.contenido) === 'vacio') g.vacio++;
   });
   const lista = Object.keys(grupos).map(function(k) { return grupos[k]; })
@@ -930,6 +936,11 @@ function pintarPorGas(cilindros) {
         '<span class="nom">' + esc(g.gas) + '</span>' +
         '<span class="det">' + g.lleno + (g.lleno === 1 ? ' lleno' : ' llenos') + ' · ' +
         g.vacio + (g.vacio === 1 ? ' vacío' : ' vacíos') + '</span>' +
+        (g.lleno ? '<span class="est-gas">' +
+          '<span class="estado ok">' + g.vig + (g.vig === 1 ? ' vigente' : ' vigentes') + '</span>' +
+          (g.por ? '<span class="estado alerta">' + g.por + ' por vencer</span>' : '') +
+          '<span class="estado rojo">' + g.ven + (g.ven === 1 ? ' vencido' : ' vencidos') + '</span>' +
+          (g.sin ? '<span class="estado gris">' + g.sin + ' sin fecha</span>' : '') + '</span>' : '') +
         '<b class="tot">' + g.total + '</b></button>';
     }).join('');
 }
@@ -1022,12 +1033,23 @@ const DIAS_AVISO_GAS = 30;
 function estadoGas(c) {
   if (!c || normal(c.contenido) !== 'lleno') return '';
   const v = leerMesAnio(c.venceGas);
-  if (!v) return '';
+  if (!v) return 'Sin fecha';
   const fin = new Date(v.anio, v.mes, 1);   // primer día del mes siguiente
   const hoy = new Date();
   if (fin <= hoy) return 'Vencido';
   if (fin - hoy <= DIAS_AVISO_GAS * 86400000) return 'Por vencer';
   return 'Vigente';
+}
+
+/** Etiqueta del gas para cilindros llenos: vigente, por vencer, vencido o sin fecha. */
+function etiquetaGas(c) {
+  switch (c.gasEst) {
+    case 'Vigente': return '<span class="estado ok">Gas vigente ' + esc(c.venceGas) + '</span>';
+    case 'Por vencer': return '<span class="estado alerta">Gas vence ' + esc(c.venceGas) + '</span>';
+    case 'Vencido': return '<span class="estado rojo">Gas venció ' + esc(c.venceGas) + '</span>';
+    case 'Sin fecha': return '<span class="estado gris">Gas sin fecha</span>';
+    default: return '';
+  }
 }
 
 function pintarPuntoInventario() {
