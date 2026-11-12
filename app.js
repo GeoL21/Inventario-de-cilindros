@@ -884,7 +884,9 @@ function pintarInventario() {
     return;
   }
   $('lista').innerHTML = lista.slice(0, 300).map(function(c) {
-    return '<div class="fila-c"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
+    const franja = c.est === 'Vencida' || c.gasEst === 'Vencido' ? 'rojo'
+      : c.est === 'Por vencer' || c.gasEst === 'Por vencer' ? 'alerta' : 'ok';
+    return '<div class="fila-c e-' + franja + '"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
       '<div class="txt"><b>' + esc(c.serial) + '</b><small>' +
       esc([c.gas, c.capacidad, c.propietario].filter(Boolean).join(' · ')) + '</small><small>' +
       (c.pendiente ? ico('sinred', 's') + ' Sin subir · ' : '') +
@@ -1088,7 +1090,8 @@ function filaLote(l) {
   const der = l.estado === 'Cerrado'
     ? '<div class="fila-foto">' + chipFoto(l, 'salida', true) + chipFoto(l, 'entrada', true) + '</div>'
     : (diasAfuera(l) > DIAS_ALERTA ? '<span style="color:var(--rojo-txt)">' + ico('alerta') + '</span>' : ico('flecha'));
-  return '<div class="lote">' +
+  const franja = l.estado === 'Cerrado' ? 'ok' : diasAfuera(l) > DIAS_ALERTA ? 'rojo' : 'vino';
+  return '<div class="lote e-' + franja + '">' +
     '<button type="button" class="abrir" data-lote="' + esc(l.id) + '"><span class="txt">' +
     '<b>' + esc(l.gas) + ' · ' + n + (n === 1 ? ' cilindro' : ' cilindros') + det + '</b>' +
     '<small>' + esc(l.empresa) + ' · salió ' + fechaISO(l.salida) + ' · rem. ' + esc(l.remSalida) + '</small>' +

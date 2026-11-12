@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#79022C">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="description" content="Inventario de cilindros de gases medicinales por sede. Funciona sin señal.">
 <title>Inventario de cilindros</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,8 +12,8 @@
 <style>
 @font-face{font-family:"Plus Jakarta Sans";src:url("PlusJakartaSans.ttf") format("truetype");font-weight:200 800;font-display:swap}
 :root{
-  --vino:#79022C;--vino-osc:#5A0121;--vino-suave:#F6E9EE;--vino-medio:#EADCE1;
-  --fondo:#F4F1F2;--tarjeta:#fff;--tinta:#1F2937;--suave:#4B5563;--linea:#E0CDD3;--linea-suave:#EFE4E8;
+  --vino:#6A1B3A;--vino-osc:#4E1229;--vino-suave:#F7EEF2;--vino-medio:#EADCE1;
+  --fondo:#FBF8F9;--tarjeta:#fff;--tinta:#1F2937;--suave:#4B5563;--linea:#E0CDD3;--linea-suave:#EFE4E8;
   --ok:#1C7A4C;--ok-txt:#17663F;--ok-suave:#E5F3EC;
   --alerta:#A8540A;--alerta-txt:#8A4508;--alerta-suave:#FDF0DF;--alerta-linea:#F2D3A8;
   --rojo:#B3261E;--rojo-txt:#9B1F18;--rojo-suave:#FBE9E7;--rojo-linea:#F1C3BE;
@@ -36,15 +36,16 @@ button{cursor:pointer}
 #app{max-width:640px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
 
 /* Encabezado */
-.cab{position:sticky;top:0;z-index:5;background:var(--vino);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:10px}
-.cab .logo{width:44px;height:44px;border-radius:50%;background:#fff;flex:none;object-fit:cover}
+.cab{position:sticky;top:0;z-index:5;background:#fff;color:var(--tinta);border-bottom:1px solid var(--linea-suave);padding:calc(10px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:10px}
+.cab .logo{width:42px;height:42px;border-radius:50%;background:#fff;flex:none;object-fit:cover;border:2px solid var(--vino);padding:1px}
 .cab .tit{flex:1;min-width:0}
-.cab h1{font-size:18px;font-weight:800;line-height:1.2}
-.cab small{display:block;font-size:13px;opacity:.9;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.btn-cab{min-width:44px;height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;font-size:14px;font-weight:700;flex:none}
+.cab h1{font-size:18px;font-weight:800;line-height:1.2;color:var(--vino)}
+.cab small{display:block;font-size:13px;color:var(--suave);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-cab{min-width:44px;height:44px;border-radius:12px;border:1.5px solid var(--linea-suave);background:#fff;color:var(--vino);display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;font-size:14px;font-weight:700;flex:none}
 
 /* Franja de sincronización */
-.franja{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;font-weight:600;line-height:1.35}
+.franja{display:flex;align-items:center;gap:8px;margin:10px 16px 0;padding:7px 12px;border-radius:12px;font-size:13px;font-weight:600;line-height:1.35}
+.franja.ok{align-self:flex-start;border-radius:20px;padding:6px 12px}
 .franja.ok{background:var(--ok-suave);color:var(--ok-txt)}
 .franja.espera{background:var(--alerta-suave);color:var(--alerta-txt)}
 .franja.sube{background:var(--vino-suave);color:var(--vino)}
@@ -118,8 +119,9 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom);display:flex;justify-content:center}
 .nav .dentro{width:100%;max-width:640px;display:grid;grid-template-columns:1fr 1fr 1fr}
 .nav .punto{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;height:18px;border-radius:9px;background:var(--rojo);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;padding:0 5px}
-.nav button{border:0;background:none;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;font-weight:700;color:var(--suave);position:relative}
-.nav button[aria-current="page"]{color:var(--vino)}
+.nav button{border:0;background:none;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;font-weight:600;color:var(--suave);position:relative}
+.nav button[aria-current="page"]{color:var(--vino);font-weight:800}
+.nav .marca{display:none}
 .nav button[aria-current="page"]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--vino)}
 
 /* Inventario */
@@ -130,15 +132,20 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 .scroll::-webkit-scrollbar{display:none}
 .scroll .chip{flex:none;white-space:nowrap}
 .resumen{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.cifra{border:1px solid var(--linea);background:#fff;border-radius:12px;padding:8px 10px}
-.cifra b{display:block;font-size:20px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+.cifra{border:1px solid var(--linea);background:#fff;border-radius:16px;padding:10px 8px 10px 10px;min-height:64px}
+.cifra span{white-space:nowrap;letter-spacing:-.01em}
+.cifra b{display:block;font-size:22px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
 .cifra span{font-size:11px;font-weight:700;color:var(--suave)}
 .cifra.rojo{background:var(--rojo-suave);border-color:var(--rojo-linea);color:var(--rojo-txt)}
 .cifra.rojo span{color:inherit}
-.lista{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden}
+.lista{display:flex;flex-direction:column;gap:8px}
+.lista>.vacio{background:#fff;border:1px solid var(--linea);border-radius:var(--radio)}
+/* Tarjeta con franja de color a la izquierda según su estado */
+.fila-c,.lote{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);position:relative;overflow:hidden}
+.fila-c::before,.lote::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ok)}
+.e-alerta::before{background:var(--alerta)}.e-rojo::before{background:var(--rojo)}.e-vino::before{background:var(--vino)}
 .fila{display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:none;width:100%;text-align:left;min-height:64px}
 .fila-c{display:flex;align-items:center}
-.fila-c+.fila-c{border-top:1px solid var(--linea-suave)}
 .fila-c .fila{flex:1;min-width:0}
 .papelera{width:44px;height:44px;margin-right:8px;flex:none;border:1px solid var(--rojo-linea);border-radius:12px;background:var(--rojo-suave);color:var(--rojo-txt);display:grid;place-items:center}
 .fila:active{background:var(--vino-suave)}
@@ -175,8 +182,7 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
 
 
 /* Llenado */
-.lote{display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:none;width:100%;text-align:left;min-height:68px}
-.lote+.lote{border-top:1px solid var(--linea-suave)}
+.lote{display:flex;align-items:center;gap:10px;padding:12px 14px;width:100%;text-align:left;min-height:68px}
 .lote:active{background:var(--vino-suave)}
 .lote .abrir{flex:1;min-width:0;border:0;background:none;text-align:left;padding:0;min-height:44px;color:inherit}
 .lote .txt{display:block}
@@ -234,7 +240,14 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
   .nav .dentro{display:flex;flex-direction:column;gap:4px}
   .nav button{flex-direction:row;justify-content:flex-start;gap:12px;min-height:50px;padding:0 14px;border-radius:12px;font-size:15px}
   .nav button:hover{background:var(--vino-suave)}
-  .nav button[aria-current="page"]{background:var(--vino);color:#fff}
+  .nav button[aria-current="page"]{background:var(--vino-suave);color:var(--vino)}
+  .nav .marca{display:flex;gap:10px;align-items:center;padding:2px 6px 16px}
+  .nav .marca img{width:42px;height:42px;border-radius:50%;border:2px solid var(--vino);padding:1px;background:#fff;flex:none}
+  .nav .marca b{color:var(--vino);font-weight:800;font-size:14.5px;line-height:1.2}
+  .cab{position:static;background:transparent;border-bottom:0;padding:18px 28px 6px}
+  .cab .logo{display:none}
+  .cab h1{font-size:24px;color:var(--tinta)}
+  .franja{margin:8px 28px 0}
   .nav button[aria-current="page"]::before{display:none}
   .cuerpo{padding:22px 28px 110px}
   #vRegistrar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
@@ -249,10 +262,8 @@ textarea.entrada{min-height:72px;font-size:16px;font-weight:500;resize:vertical}
   .scroll{margin:0;padding:0;flex-wrap:wrap;overflow:visible}
   .resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .cifra{padding:12px 14px}.cifra b{font-size:26px}.cifra span{font-size:12px}
-  .lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  .lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px}
   .lista .vacio{grid-column:1/-1}
-  .fila-c+.fila-c{border-top:0}
-  .fila-c{border-bottom:1px solid var(--linea-suave);border-right:1px solid var(--linea-suave)}
   .fila:hover,.gas:hover,.chip:hover{background:var(--vino-suave)}
   .chip[aria-pressed="true"]:hover,.gas[aria-pressed="true"]:hover{background:var(--vino)}
   .toast{left:236px;bottom:96px}
@@ -449,6 +460,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
 
     <nav class="nav" aria-label="Secciones">
       <div class="dentro">
+        <div class="marca"><img src="logo.jpg" alt=""><b>Inventario de cilindros</b></div>
         <button id="navInventario" aria-current="page"><svg class="i"><use href="#i-lista"/></svg>Inventario<span id="puntoInventario" class="punto oculto"></span></button>
         <button id="navLlenado"><svg class="i"><use href="#i-camion"/></svg>Llenado<span id="puntoLlenado" class="punto oculto"></span></button>
         <button id="navRegistrar"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
