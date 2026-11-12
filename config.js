@@ -5,4 +5,4 @@
  * del inventario de cilindros (la que termina en /exec).
  *****************************************************************/
 
-const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbxfBoemugBJrwqjXIn2hCKV_AcKiPOSiiQIi1zVkYCqIQ-P33NCavKbwgNxTF-ouwyN2w/exec';
+const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbzvat1zhpGq7A0_l8dk9zTU-k_WcawvJfItRx_Z_2cLRNcwxV1GKiyXAi7UoTdlEO3B/exec';

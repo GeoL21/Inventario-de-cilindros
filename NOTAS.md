@@ -10,8 +10,8 @@ Gases: oxígeno, nitrógeno, dioxicarbomed, oxígeno portátil y aire, con opci�
 - Servidor: `apps-script/Code.gs` de este repo, pegado en el Apps Script de la hoja.
   La URL del servidor está en `config.js`.
 - Datos: hoja "Inventario de cilindros - CRC", con pestañas `Registros`, `Inventario actual` y `Config`.
-- OJO: esta hoja se creó en la cuenta personal geoortiz89@gmail.com, no en cilindrocrc.
-  Para verla desde la cuenta cilindrocrc hay que compartirla con esa cuenta.
+- La hoja y su Apps Script viven en la cuenta cilindrocrc@gmail.com (migrada el 12/11/2026).
+  La copia vieja de geoortiz89@gmail.com ya no se usa.
 - Técnicos, empresas, gases, capacidades y años de la prueba hidrostática se cambian en la pestaña `Config`.
 
 ## Reglas que no se cambian
