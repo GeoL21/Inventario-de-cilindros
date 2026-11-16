@@ -42,3 +42,11 @@ Gases: oxígeno, nitrógeno, dioxicarbomed, oxígeno portátil y aire, con opci�
 - Al cambiar archivos, subir el número de `VERSION` en `sw.js`.
 - Si se cambia `Code.gs`, hay que pegarlo en el Apps Script y crear una nueva versión de la implementación.
 - Este repo es público: no escribir aquí códigos de acceso, claves ni nombres del personal.
+
+## Estándar visual (16 nov 2026)
+- Estilo Material 3 "Mornye": vino #8E4953, fondo #FFF8F7, tarjetas #F8ECEC agrupadas (3 px entre filas, puntas de 28 px).
+- Encabezado: volver al portal (geol21.github.io), logo-crc.png, título grande por pestaña, sede · técnico con lápiz, estado de subida y reloj de Colombia.
+- Registrar: secciones Cilindro / Identificación / Estado con chip verde "Listo" (sello con check, no un check suelto).
+- Si falta algo al guardar: mensaje emergente (Entendido / Ir ahí) con sonido; al guardar, sonido de listo.
+- Borrar cilindro: en el menú de tres puntos de cada fila; sigue pidiendo código de administrador.
+- Siguen igual: botones en vez de desplegables, serial en MAYÚSCULAS, subir VERSION en sw.js.

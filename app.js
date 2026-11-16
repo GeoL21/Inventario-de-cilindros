@@ -351,6 +351,7 @@ function pintarFormulario() {
   pintarCapacidades();
   pintarContador();
   pintarTiraSiguiente();
+  pintarListos();
 }
 
 /** Capacidades ya usadas, las más frecuentes primero. */
@@ -404,7 +405,7 @@ function pintarEstadoPH() {
   const vence = calcularVence(txt);
   const est = estadoPH(vence);
   caja.className = 'estado ' + claseEstado(est);
-  caja.innerHTML = ico(est === 'Vigente' ? 'check' : 'alerta', 's') +
+  caja.innerHTML = (est === 'Vigente' ? ico('sello', 's sello') : ico('alerta', 's')) +
     (est === 'Vencida' ? 'Vencida · venció ' : est === 'Por vencer' ? 'Por vencer · vence ' : 'Vigente hasta ') + vence;
 }
 
@@ -559,6 +560,7 @@ function leerFormulario() {
 
   errores.forEach(function(e) { mostrarError(e[0], e[1]); });
   if (errores.length) {
+    abrirSnack(errores);
     if (errores.some(function(e) { return e[0] === 'serial'; })) $('fSerial').classList.add('mal');
     if (ePH) $('fPH').classList.add('mal');
     const primero = document.querySelector('[data-error="' + errores[0][0] + '"]');
@@ -617,6 +619,8 @@ function terminar() {
 
 /** Guarda. Con "siguiente" deja propietario, gas y capacidad. */
 async function guardar(siguiente) {
+  prepararSonido();
+  cerrarSnack();
   const r = leerFormulario();
   if (!r) return;
   const previo = inventarioCompleto().find(function(x) { return String(x.serial).toUpperCase() === r.serial; });
@@ -653,6 +657,7 @@ async function guardar(siguiente) {
   ls('ic_hoy', hoy);
 
   await encolar('registrar', { r: r });
+  sonarListo();
 
   const est = estadoPH(calcularVence(r.ph));
   toast(ico('check', 's') + (esCorreccion ? 'Corregido ' : 'Guardado ') + esc(r.serial) +
@@ -664,6 +669,7 @@ async function guardar(siguiente) {
     if (S.otro.gas) { S.f.gas = r.gas; S.otro.gas = false; }
   }
   limpiarFormulario(!siguiente);
+  pintarListos();
   S.siguiente = siguiente;
   pintarTiraSiguiente();
   if (S.versionNueva) { setTimeout(recargarSiSePuede, 1500); }
@@ -888,24 +894,36 @@ function pintarInventario() {
     return;
   }
   $('lista').innerHTML = lista.slice(0, 300).map(function(c) {
-    const franja = c.est === 'Vencida' || c.gasEst === 'Vencido' ? 'rojo'
-      : c.est === 'Por vencer' || c.gasEst === 'Por vencer' ? 'alerta' : 'ok';
-    return '<div class="fila-c e-' + franja + '"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
+    const gc = codigoGas(c.gas);
+    const venc = c.vence || calcularVence(c.ph);
+    const icPH = c.est === 'Vigente' ? ico('sello', 's sello') : ico(c.est === 'Vencida' ? 'alerta' : 'reloj', 's');
+    return '<div class="fila-c"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
+      '<span class="gt ' + gc[1] + '">' + esc(gc[0]) + '</span>' +
       '<div class="txt"><b>' + esc(c.serial) + '</b><small>' +
       esc([c.gas, c.capacidad, c.propietario].filter(Boolean).join(' · ')) + '</small><small>' +
       (c.pendiente ? ico('sinred', 's') + ' Sin subir · ' : '') +
       esc((S.filtroSede ? '' : c.sede + ' · ') + fechaCorta(c.fecha) + (c.tecnico ? ' · ' + c.tecnico : '')) +
-      '</small></div><div class="der">' +
-      '<span class="estado vino">' + esc(c.contenido || '') + '</span>' +
+      '</small><div class="chips-c">' +
+      (c.contenido ? '<span class="estado ' + (normal(c.contenido) === 'lleno' ? 'vino' : 'gris') + '">' + esc(c.contenido) + '</span>' : '') +
       etiquetaGas(c) +
-      (c.est ? '<span class="estado ' + claseEstado(c.est) + '">' + (c.est === 'Vencida' ? 'PH venció ' : 'PH vence ') + esc(c.vence || calcularVence(c.ph)) + '</span>' : '') +
-      '</div></button><button type="button" class="papelera" data-borrar="' + esc(c.serial) +
-      '" aria-label="Borrar ' + esc(c.serial) + '">' + ico('papelera') + '</button></div>';
+      (c.est ? '<span class="estado ' + claseEstado(c.est) + '">' + icPH + (c.est === 'Vencida' ? 'PH venció ' : 'PH vence ') + esc(venc) + '</span>' : '') +
+      '</div></div></button>' +
+      '<details class="mas"><summary aria-label="Más opciones de ' + esc(c.serial) + '">' + ico('mas') + '</summary>' +
+      '<div class="menu"><button type="button" data-borrar="' + esc(c.serial) + '">' + ico('papelera') + 'Borrar cilindro</button></div></details></div>';
   }).join('') + (lista.length > 300
     ? '<p class="ayuda" style="padding:12px 14px">Mostrando 300 de ' + lista.length + '. Busca por serial para ver los demás.</p>'
     : '');
 }
 
+
+const GAS_COD = { 'oxigeno': ['O₂', ''], 'aire medicinal': ['Aire', 'ai'], 'aire': ['Aire', 'ai'], 'nitrogeno': ['N₂', 'n2'],
+  'dioxicarbomed': ['CO₂', 'co'], 'dioxido de carbono': ['CO₂', 'co'], 'oxigeno portatil': ['O₂ P', 'op'] };
+function codigoGas(gas) {
+  const k = normal(gas);
+  if (GAS_COD[k]) return GAS_COD[k];
+  const t = String(gas || '?').trim();
+  return [t.slice(0, 3), 'ot'];
+}
 
 /** Cantidad de cilindros por gas (total, llenos y vacíos) de la sede elegida. */
 function pintarPorGas(cilindros) {
@@ -929,10 +947,11 @@ function pintarPorGas(cilindros) {
   const caja = $('porGas');
   if (!lista.length) { caja.classList.add('oculto'); return; }
   caja.classList.remove('oculto');
-  caja.innerHTML = '<div class="tit-gas"><b>Por gas</b><small>Toca un gas para ver sus cilindros</small></div>' +
+  caja.innerHTML = '<p class="sec" style="margin:0 8px 9px"><span>Por gas</span><small style="font-weight:400;font-size:13px;color:var(--suave)">toca un gas para filtrar</small></p>' +
     lista.map(function(g) {
       const activo = S.filtroGas && normal(S.filtroGas) === normal(g.gas);
       return '<button type="button" class="gas" data-gas="' + esc(g.gas) + '" aria-pressed="' + !!activo + '">' +
+        '<span class="gt ' + codigoGas(g.gas)[1] + '">' + esc(codigoGas(g.gas)[0]) + '</span><span class="txt">' +
         '<span class="nom">' + esc(g.gas) + '</span>' +
         '<span class="det">' + g.lleno + (g.lleno === 1 ? ' lleno' : ' llenos') + ' · ' +
         g.vacio + (g.vacio === 1 ? ' vacío' : ' vacíos') + '</span>' +
@@ -941,7 +960,7 @@ function pintarPorGas(cilindros) {
           (g.por ? '<span class="estado alerta">' + g.por + ' por vencer</span>' : '') +
           '<span class="estado rojo">' + g.ven + (g.ven === 1 ? ' vencido' : ' vencidos') + '</span>' +
           (g.sin ? '<span class="estado gris">' + g.sin + ' sin fecha</span>' : '') + '</span>' : '') +
-        '<b class="tot">' + g.total + '</b></button>';
+        '</span><b class="tot">' + g.total + '</b></button>';
     }).join('');
 }
 
@@ -1070,7 +1089,7 @@ function pintarEstadoGas() {
   if (!leerMesAnio(txt)) { caja.classList.add('oculto'); return; }
   const est = estadoGas({ contenido: 'Lleno', venceGas: txt });
   caja.className = 'estado ' + (est === 'Vencido' ? 'rojo' : est === 'Por vencer' ? 'alerta' : 'ok');
-  caja.innerHTML = ico(est === 'Vigente' ? 'check' : 'alerta', 's') +
+  caja.innerHTML = (est === 'Vigente' ? ico('sello', 's sello') : ico('alerta', 's')) +
     (est === 'Vencido' ? 'Gas vencido · venció ' : est === 'Por vencer' ? 'Gas por vencer · vence ' : 'Gas vigente hasta ') + esc(txt);
 }
 
@@ -1712,6 +1731,8 @@ function irA(vista) {
   $('navRegistrar').setAttribute('aria-current', vista === 'registrar' ? 'page' : 'false');
   $('navInventario').setAttribute('aria-current', vista === 'inventario' ? 'page' : 'false');
   $('navLlenado').setAttribute('aria-current', vista === 'llenado' ? 'page' : 'false');
+  $('hTit').textContent = vista === 'registrar' ? 'Registrar cilindro' : vista === 'llenado' ? 'Llenado' : 'Inventario de cilindros';
+  cerrarSnack();
   pintarPuntoLlenado();
   if (vista === 'inventario') {
     if (S.filtroSede === undefined) S.filtroSede = S.sede;
@@ -1808,6 +1829,7 @@ function seguir() {
  ***********************/
 
 function eventos() {
+  eventosEstandar();
   $('btnEntrar').onclick = entrar;
   $('codigoAcceso').addEventListener('keydown', function(e) { if (e.key === 'Enter') entrar(); });
 
@@ -2024,6 +2046,108 @@ async function instalar() {
 /***********************
  * ARRANQUE
  ***********************/
+
+/***********************
+ * ESTÁNDAR VISUAL: chips Listo, mensaje de lo que falta,
+ * sonidos y reloj de Colombia
+ ***********************/
+
+const NOMBRE_CAMPO = { propietario: 'el propietario', gas: 'el gas', serial: 'el serial', ph: 'la prueba hidrostática',
+  valvula: 'la válvula', pintura: 'la pintura', contenido: 'si está lleno o vacío', venceGas: 'el vencimiento del gas' };
+
+function ponerListo(id, ok) {
+  const t = $(id);
+  if (!t) return;
+  const antes = t.dataset.ok === '1';
+  if (antes === ok) return;
+  t.dataset.ok = ok ? '1' : '';
+  t.innerHTML = ok ? ico('sello', 's sello') + 'Listo' : '';
+}
+
+/** Chip verde "Listo" en cada sección del registro cuando está completa. */
+function pintarListos() {
+  if (!$('tgCil')) return;
+  const prop = S.otro.propietario ? $('fPropietarioOtro').value.trim() : S.f.propietario;
+  const gas = S.otro.gas ? $('fGasOtro').value.trim() : S.f.gas;
+  ponerListo('tgCil', !!(prop && gas));
+  const ph = $('fPH').value.trim();
+  ponerListo('tgId', !!($('fSerial').value.trim() && ph && !errorPH(completarPH(ph))));
+  const vg = $('fVenceGas').value.trim();
+  const vgOk = normal(S.f.contenido) !== 'lleno' || !vg || !!leerMesAnio(completarPH(vg));
+  ponerListo('tgEst', !!(S.f.valvula && S.f.pintura && S.f.contenido && vgOk));
+}
+
+let snackCampo = '';
+function abrirSnack(errores) {
+  const nombres = errores.map(function(e) { return NOMBRE_CAMPO[e[0]] || e[0]; });
+  const lista = nombres.length > 1 ? nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1] : nombres[0];
+  $('snackTit').textContent = errores.length === 1 ? 'Falta un dato' : 'Faltan ' + errores.length + ' datos';
+  $('snackTxt').textContent = 'Completa ' + lista + '.';
+  snackCampo = errores[0][0];
+  $('snack').classList.add('on');
+  sonarFalta();
+  clearTimeout(abrirSnack.t);
+  abrirSnack.t = setTimeout(cerrarSnack, 8000);
+}
+function cerrarSnack() { const s = $('snack'); if (s) s.classList.remove('on'); }
+function irFalta() {
+  cerrarSnack();
+  const p = document.querySelector('[data-error="' + snackCampo + '"]');
+  if (p) p.parentElement.scrollIntoView({ behavior: DESPLAZA, block: 'center' });
+  const foco = { serial: 'fSerial', ph: 'fPH', venceGas: 'fVenceGas' }[snackCampo];
+  if (foco) $(foco).focus({ preventScroll: true });
+}
+
+let audio = null;
+function prepararSonido() {
+  try {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+  } catch (e) { audio = null; }
+}
+function tono(notas, vol) {
+  if (!audio) return;
+  try {
+    const t0 = audio.currentTime + 0.02;
+    notas.forEach(function(n) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'sine'; o.frequency.value = n[0];
+      g.gain.setValueAtTime(0, t0 + n[1]);
+      g.gain.linearRampToValueAtTime(vol, t0 + n[1] + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + n[1] + n[2]);
+      o.connect(g); g.connect(audio.destination);
+      o.start(t0 + n[1]); o.stop(t0 + n[1] + n[2] + 0.05);
+    });
+  } catch (e) {}
+}
+function vibrar(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+function sonarListo() { tono([[784, 0, 0.28], [1046.5, 0.13, 0.28], [1318.5, 0.26, 0.5]], 0.22); vibrar([50, 60, 90]); }
+function sonarFalta() { tono([[659.3, 0, 0.22], [523.3, 0.16, 0.34]], 0.2); vibrar([90, 70, 90]); }
+
+function horaColombia() {
+  return new Date().toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })
+    .replace(/a\.?\s?m\.?/i, 'a. m.').replace(/p\.?\s?m\.?/i, 'p. m.');
+}
+function relojTick() {
+  const h = $('fHora');
+  if (h) h.textContent = horaColombia();
+}
+
+function eventosEstandar() {
+  $('snackOk').onclick = cerrarSnack;
+  $('snackIr').onclick = irFalta;
+  ['click', 'input'].forEach(function(ev) {
+    $('vRegistrar').addEventListener(ev, function() { setTimeout(pintarListos); });
+  });
+  // El menú de tres puntos se cierra al tocar fuera o al elegir
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('details.mas[open]').forEach(function(d) {
+      if (!d.contains(e.target) || e.target.closest('.menu button')) d.removeAttribute('open');
+    });
+  });
+  relojTick();
+  setInterval(relojTick, 15000);
+}
 
 async function iniciar() {
   try { await abrirBD(); } catch (e) { /* sin IndexedDB: funciona solo en memoria */ }

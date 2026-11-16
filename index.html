@@ -3,12 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#FFF8F7">
 <meta name="description" content="Inventario de cilindros de gases medicinales por sede. Funciona sin señal.">
 <title>Inventario de cilindros</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 @font-face{font-family:"Plus Jakarta Sans";src:url("PlusJakartaSans.ttf") format("truetype");font-weight:200 800;font-display:swap}
 :root{
@@ -281,6 +285,195 @@ button,.btn{transition:transform 150ms var(--ease-out)}
 button:active:not(:disabled),.btn:active{transform:scale(.98)}
 /* Con "reducir movimiento" activado en el teléfono: sin escalas */
 @media (prefers-reduced-motion:reduce){button:active:not(:disabled),.btn:active{transform:none!important}}
+
+/* ---------- Estándar visual (Material 3, estilo Mornye) – 16 nov 2026 ---------- */
+:root{
+  --vino:#8E4953;--vino-osc:#73343E;--vino-suave:#F8ECEC;--vino-medio:#F0DEDF;
+  --fondo:#FFF8F7;--tarjeta:#F8ECEC;--tinta:#22191A;--suave:#534345;--linea:#D8C2C4;--linea-suave:#F0DEDF;
+  --ok:#1B5E33;--ok-txt:#1B5E33;--ok-suave:#D3F0DC;
+  --alerta:#7A4A00;--alerta-txt:#7A4A00;--alerta-suave:#FFF3DC;--alerta-linea:#F2D9AC;
+  --rojo:#B3261E;--rojo-txt:#B3261E;--rojo-suave:#FCEBEA;--rojo-linea:#F2C4C0;
+  --cont:#FFD9DD;--cont-txt:#3B0713;
+  --m3:cubic-bezier(.2,0,0,1);--m3in:cubic-bezier(.05,.7,.1,1);
+  --radio:28px;
+}
+html,body{font-family:"Google Sans Flex","Roboto Flex",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+:focus-visible{outline-color:#8E4953}
+
+/* Encabezado estándar */
+.cab{position:static;display:block;background:transparent;border:0;padding:calc(20px + env(safe-area-inset-top)) 24px 4px}
+.cab .hrow{display:flex;align-items:center;justify-content:space-between}
+.cab .volver{width:48px;height:48px;border-radius:24px;background:var(--linea-suave);color:var(--tinta);display:flex;align-items:center;justify-content:center;transition:transform 150ms var(--ease-out)}
+.cab .volver:active{transform:scale(.94)}
+.cab .volver .i{width:24px;height:24px}
+.cab .hder{display:flex;align-items:center;gap:8px}
+.cab .logo{width:48px;height:48px;border:0;padding:0;border-radius:0;background:none;object-fit:contain}
+.btn-cab{border:0;background:var(--linea-suave);color:var(--tinta);border-radius:24px;height:48px;min-width:48px}
+.cab h1{margin:28px 0 6px;font-size:34px;line-height:42px;font-weight:700;letter-spacing:-.3px;color:var(--tinta)}
+.cab .turno{border:0;background:none;padding:0;min-height:32px;display:inline-flex;align-items:center;gap:6px;font-size:15px;color:var(--suave)}
+.cab .turno .i{color:var(--vino);width:18px;height:18px}
+.estado-fila{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;min-height:36px;flex-wrap:wrap}
+.estado-fila .hora{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:18px;background:var(--tarjeta);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.estado-fila .hora .i{color:var(--vino);width:18px;height:18px}
+.franja{margin:0;border-radius:18px;font-weight:500;flex:1 1 auto;min-width:0}
+.franja.ok{background:none;padding:0;color:var(--ok-txt);flex:0 1 auto}
+.franja.espera,.franja.error,.franja.sube{flex-basis:100%;order:2}
+.franja button{border-radius:16px;font-weight:600}
+
+/* Cuerpo y secciones */
+.cuerpo{padding:12px 16px calc(110px + env(safe-area-inset-bottom));gap:10px}
+.sec{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 8px 2px;font-size:15px;font-weight:600;color:var(--vino)}
+.sec:first-child{margin-top:8px}
+.tag{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:13px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.tag:empty{display:none}
+.tag.ok{background:var(--ok-suave);color:var(--ok-txt);animation:aparece 350ms var(--m3in)}
+.i.sello{width:16px;height:16px;stroke:none}
+@keyframes aparece{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+.bloque{display:flex;flex-direction:column;gap:10px}
+.tarjeta{border:0;border-radius:28px;padding:18px 20px;background:var(--tarjeta)}
+.etq{font-weight:500;color:var(--suave)}
+.chip{border:1px solid var(--linea);background:var(--fondo);font-weight:500;border-radius:22px;transition:background 350ms var(--m3),color 350ms var(--m3),transform 150ms var(--ease-out)}
+.chip[aria-pressed="true"]{background:var(--vino);border-color:var(--vino);color:#fff;font-weight:600}
+.chip[aria-pressed="true"]::before{content:"";width:18px;height:18px;flex:none;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/contain no-repeat}
+.chip.mas{border-style:dashed}
+.entrada{border:1px solid var(--linea);border-radius:16px;background:#fff;font-weight:500}
+.entrada:focus{border-color:var(--vino);box-shadow:0 0 0 3px var(--cont)}
+.estado{border-radius:13px;font-weight:600;padding:4px 10px}
+.estado.vino{background:var(--vino);color:#fff}
+.estado.gris{background:var(--linea-suave);color:#3A2E2F;border:0;padding:4px 10px}
+.aviso-serial{border:0;border-radius:16px}
+.instalar{background:var(--cont);border:0;border-radius:28px}
+.fila-inst b{color:var(--cont-txt)}
+.tira{background:var(--fondo);border-radius:20px}
+.tira button{border-radius:20px;border:1px solid var(--linea);color:var(--vino)}
+
+/* Botones */
+.btn{border:0;border-radius:28px;min-height:56px;background:var(--cont);color:var(--cont-txt);font-weight:600;font-size:15.5px;transition:transform 150ms var(--ease-out),background 200ms}
+.btn.prin{background:var(--vino);color:#fff}
+.btn.prin:active{background:var(--vino-osc)}
+.btn.rojo{background:var(--rojo);color:#fff}
+.barra .dentro{grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:10px;padding:12px 16px;background:var(--fondo)}
+
+/* Navegación con pastilla */
+.nav{background:var(--tarjeta);border-top:0}
+.nav button{min-height:80px;gap:4px;font-size:12px;font-weight:500;color:var(--tinta)}
+.nav .pill{width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:width 300ms var(--m3),background 300ms var(--m3)}
+.nav button[aria-current="page"]{color:var(--tinta);font-weight:700}
+.nav button[aria-current="page"] .pill{width:64px;background:var(--cont);color:var(--cont-txt)}
+.nav button[aria-current="page"]::before{display:none}
+.nav .punto{top:10px;left:calc(50% + 10px)}
+.barra{bottom:calc(80px + env(safe-area-inset-bottom))}
+
+/* Inventario */
+.buscar{border:0;border-radius:28px;background:var(--linea-suave);min-height:56px;padding:0 8px 0 18px}
+.buscar input{font-weight:500}
+.seg{background:var(--tarjeta);border-radius:28px;padding:8px;display:flex;gap:4px}
+.seg .chip{flex:1 1 auto;border:0;background:transparent;min-height:48px;border-radius:24px;justify-content:center;padding:0 10px;font-size:14px;font-weight:600;gap:5px;white-space:nowrap}
+.seg .chip .n{font-size:11.5px;padding:1px 6px}
+.gas .estado.rojo,.tarjeta .estado.rojo{background:#F9DCDA}
+.seg .chip[aria-pressed="true"]{background:var(--vino);color:#fff}
+.seg .chip[aria-pressed="true"]::before{display:none}
+.seg .chip .n{background:rgba(142,73,83,.12)}
+.seg .chip[aria-pressed="true"] .n{background:rgba(255,255,255,.22)}
+.scroll .chip{min-height:36px;padding:0 14px;font-size:14px}
+.scroll .chip[aria-pressed="true"]{background:var(--cont);border-color:var(--cont);color:var(--cont-txt)}
+.resumen{gap:8px}
+.cifra{border:0;background:var(--tarjeta);border-radius:20px;padding:12px 12px 10px}
+.cifra b{font-size:24px;font-weight:700}
+.cifra span{font-weight:500}
+.cifra.rojo{background:var(--rojo-suave);color:var(--rojo)}
+.cifra.rojo span{color:#8C1D18}
+
+/* Tarjetas agrupadas (3 px entre filas, puntas redondeadas) */
+.lista,.por-gas{gap:3px;display:flex;flex-direction:column;background:none;border:0;border-radius:0;overflow:visible}
+.lista>*,.por-gas>.gas{border-radius:6px}
+.lista>:first-child,.por-gas>.gas:first-of-type{border-top-left-radius:28px;border-top-right-radius:28px}
+.lista>:last-child,.por-gas>.gas:last-of-type{border-bottom-left-radius:28px;border-bottom-right-radius:28px}
+.lista>.vacio{border:0;background:var(--tarjeta);border-radius:28px}
+.tit-gas{display:none}
+.gt{width:44px;height:44px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--cont);color:var(--cont-txt)}
+.gt.ai{background:#D3F0DC;color:#1B5E33}.gt.n2{background:#DCE3F5;color:#1E2C4F}.gt.co{background:#F6E0C4;color:#3F2D10}.gt.op{background:#FFE8D6;color:#4A2310}.gt.ot{background:var(--linea-suave);color:#3A2E2F}
+.gas{display:flex;align-items:center;gap:14px;border:0;background:var(--tarjeta);padding:14px 20px;min-height:72px;transition:background 300ms var(--m3)}
+.gas .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.gas .nom{font-size:16px;font-weight:500}
+.gas .det{font-size:13.5px}
+.gas .est-gas{margin-top:6px}
+.gas .tot{font-size:22px;font-weight:700;color:var(--tinta);min-width:0}
+.gas[aria-pressed="true"]{background:var(--cont);color:var(--cont-txt)}
+.gas[aria-pressed="true"] .det,.gas[aria-pressed="true"] .tot{color:var(--cont-txt)}
+.fila-c,.lote{background:var(--tarjeta);border:0;overflow:visible}
+.fila-c::before,.lote::before{display:none}
+.fila{gap:14px;padding:14px 4px 14px 18px;min-height:76px}
+.fila:active{background:none}
+.fila .txt b{font-size:16.5px;font-weight:600;letter-spacing:.3px}
+.fila .chips-c{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.fila .chips-c .estado{font-size:12.5px;padding:0 9px;height:26px}
+.fila .chips-c .estado .i{width:15px;height:15px}
+.mas{position:relative;flex:none;margin-right:6px}
+.mas>summary{list-style:none;width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;color:var(--suave);cursor:pointer}
+.mas>summary::-webkit-details-marker{display:none}
+.mas[open]>summary{background:var(--linea-suave)}
+.mas .menu{position:absolute;right:0;top:44px;z-index:6;background:#fff;border-radius:16px;box-shadow:0 6px 24px rgba(34,25,26,.18);padding:6px;min-width:200px;animation:aparece 200ms var(--m3in);transform-origin:top right}
+.mas .menu button{width:100%;border:0;background:none;display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:12px;font-size:15px;color:var(--rojo);text-align:left}
+.mas .menu button:active{background:var(--rojo-suave)}
+
+/* Llenado */
+.lote{padding:14px 16px 14px 18px}
+.lote .dias{display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:13px;background:var(--linea-suave);color:#3A2E2F;font-size:12.5px;font-weight:600;margin-top:8px;width:max-content}
+.lote .dias.rojo{background:var(--rojo-suave);color:var(--rojo)}
+.lote .dias.ok{background:var(--ok-suave);color:var(--ok-txt)}
+.tit-sec{text-transform:none;letter-spacing:0;font-size:15px;font-weight:600;color:var(--vino);margin:18px 8px 2px}
+.chip-foto{border-radius:16px;font-weight:600}
+.btn-foto{border-radius:20px;border:1px dashed var(--vino);background:var(--fondo)}
+.volver:not(.cab .volver){color:var(--vino)}
+.marca{border-top-color:var(--linea)}
+
+/* Acceso, turno, avisos y diálogos */
+.pantalla .logo-g{border:0;border-radius:0;width:96px;height:96px;object-fit:contain}
+.pantalla h2{color:var(--tinta);font-size:28px;font-weight:700}
+.toast div{background:#382E2F;color:#FCEBEC;border-radius:16px;font-weight:500}
+.dialogo{border-radius:28px;background:var(--fondo);padding:24px 20px}
+.dialogo h2{font-weight:700;font-size:22px}
+.opcion{border:1px solid var(--linea);border-radius:16px;background:#fff}
+.visor img{border-radius:16px}
+.snack{position:fixed;left:16px;right:16px;bottom:calc(164px + env(safe-area-inset-bottom));z-index:22;background:#382E2F;color:#FCEBEC;border-radius:16px;padding:14px 8px 6px 16px;opacity:0;transform:translateY(16px);pointer-events:none;transition:opacity 200ms var(--m3),transform 450ms var(--m3in);max-width:560px;margin:auto}
+.snack.on{opacity:1;transform:none;pointer-events:auto}
+.snack b{display:flex;align-items:center;gap:8px;font-size:15px}.snack b .i{width:20px;height:20px;color:#FFB3BB}
+.snack p{margin:4px 8px 0 28px;font-size:14px;line-height:1.45;color:#E8D5D7}
+.snack .sa{display:flex;justify-content:flex-end;gap:4px;margin-top:4px}
+.snack .sa button{border:0;background:none;color:#FFB3BB;font-size:14px;font-weight:700;min-height:44px;padding:0 12px;border-radius:20px}
+@media (prefers-reduced-motion:reduce){.snack{transform:none;transition:opacity 150ms}.tag.ok,.mas .menu{animation:none}}
+
+/* PC */
+@media (min-width:1024px){
+  .cab{padding:24px 28px 4px}
+  .cab .logo{display:none}
+  .cab h1{margin-top:18px}
+  .nav{background:var(--tarjeta);border-right:0;padding:20px 12px}
+  .nav button{flex-direction:row;min-height:56px;border-radius:28px;font-size:15px;gap:12px;padding:0 16px 0 4px}
+  .nav button:hover{background:var(--linea-suave)}
+  .nav button[aria-current="page"]{background:var(--cont);color:var(--cont-txt)}
+  .nav button[aria-current="page"] .pill{width:32px;background:none}
+  .nav .marca img{border:0;padding:0;border-radius:0;object-fit:contain}
+  .nav .marca b{color:var(--tinta)}
+  .cuerpo{padding:16px 28px 120px}
+  #vRegistrar .bloque{gap:10px}
+  #vRegistrar>.bloque .sec{margin-top:0}
+  #vRegistrar .tarjeta{padding:20px}
+  .barra .dentro{background:transparent}
+  #vInventario>#secCil{grid-column:2;grid-row:1}
+  #vInventario>#filtroEstado{grid-row:2/span 3;align-self:start}
+  #vInventario>#lista{grid-row:5/span 30}
+  .lista{display:grid;gap:3px}
+  .lista>*{border-radius:6px!important}
+  .lista>:first-child{border-top-left-radius:28px!important}
+  .fila:hover,.gas:hover{background:var(--linea-suave)}
+  .chip:hover{background:var(--linea-suave)}
+  .gas[aria-pressed="true"]:hover{background:var(--cont)}
+  .snack{bottom:28px;left:calc(220px + 28px);right:28px}
+}
 </style>
 </head>
 <body>
@@ -305,6 +498,9 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
   <symbol id="i-camara" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
   <symbol id="i-archivo" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></symbol>
   <symbol id="i-papelera" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-volver" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
+  <symbol id="i-mas" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-sello" viewBox="0 -960 960 960"><path fill="currentColor" stroke="none" d="m344-60-76-128-144-32 14-148-98-112 98-112-14-148 144-32 76-128 136 58 136-58 76 128 144 32-14 148 98 112-98 112 14 148-144 32-76 128-136-58-136 58Zm94-278 226-226-56-58-170 170-86-84-56 56 142 142Z"/></symbol>
   <symbol id="i-atras" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
   <symbol id="i-flecha" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
 </svg>
@@ -313,7 +509,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
 
   <!-- Código de acceso -->
   <section id="vAcceso" class="pantalla oculto" aria-labelledby="tAcceso">
-    <img class="logo-g" src="logo.jpg" alt="Clínica Reina Catalina">
+    <img class="logo-g" src="logo-crc.png" alt="Clínica Reina Catalina">
     <h2 id="tAcceso">Inventario de cilindros</h2>
     <p class="sub">Escribe el código de acceso del departamento.</p>
     <div class="campo">
@@ -326,7 +522,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
 
   <!-- Sede y técnico -->
   <section id="vTurno" class="pantalla oculto" aria-labelledby="tTurno">
-    <img class="logo-g" src="logo.jpg" alt="Clínica Reina Catalina">
+    <img class="logo-g" src="logo-crc.png" alt="Clínica Reina Catalina">
     <h2 id="tTurno">¿Dónde y quién registra?</h2>
     <p class="sub">Se recuerda en este celular. Puedes cambiarlo cuando quieras.</p>
     <div class="campo">
@@ -344,15 +540,20 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
   <!-- App principal -->
   <div id="vPrincipal" class="oculto" style="display:flex;flex-direction:column;flex:1">
     <header class="cab">
-      <img class="logo" src="logo.jpg" alt="">
-      <div class="tit">
-        <h1>Inventario de cilindros</h1>
-        <small id="cabTurno"></small>
+      <div class="hrow">
+        <a class="volver" href="https://geol21.github.io/" aria-label="Volver al portal de apps"><svg class="i"><use href="#i-volver"/></svg></a>
+        <div class="hder">
+          <button id="btnInstalar" class="btn-cab oculto" aria-label="Instalar app"><svg class="i"><use href="#i-instalar"/></svg></button>
+          <img class="logo" src="logo-crc.png" alt="Clínica Reina Catalina">
+        </div>
       </div>
-      <button id="btnInstalar" class="btn-cab oculto" aria-label="Instalar app"><svg class="i"><use href="#i-instalar"/></svg></button>
-      <button id="btnCambiarTurno" class="btn-cab" aria-label="Cambiar sede o técnico"><svg class="i"><use href="#i-editar"/></svg></button>
+      <h1 id="hTit">Inventario de cilindros</h1>
+      <button id="btnCambiarTurno" class="turno" aria-label="Cambiar sede o técnico"><span id="cabTurno"></span><svg class="i s"><use href="#i-editar"/></svg></button>
+      <div class="estado-fila">
+        <div id="franja" class="franja oculto" role="status"></div>
+        <span class="hora" aria-label="Hora de Colombia"><svg class="i s"><use href="#i-reloj"/></svg><span id="fHora"></span></span>
+      </div>
     </header>
-    <div id="franja" class="franja oculto" role="status"></div>
 
     <!-- Registrar -->
     <main id="vRegistrar" class="cuerpo oculto">
@@ -365,6 +566,8 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
         <button id="btnInstalarBanner" class="btn prin">Instalar</button>
         <p id="instPasos" class="ayuda oculto"></p>
       </div>
+      <section class="bloque">
+      <p class="sec"><span>Cilindro</span><span class="tag ok" id="tgCil"></span></p>
       <div class="tarjeta">
         <div class="campo">
           <span class="etq">Propietario</span>
@@ -384,7 +587,10 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
           <div id="fCapacidadUsadas" class="chips"></div>
         </div>
       </div>
+      </section>
 
+      <section class="bloque">
+      <p class="sec"><span>Identificación</span><span class="tag ok" id="tgId"></span></p>
       <div class="tarjeta">
         <div id="tiraSiguiente" class="tira oculto">
           <div class="txt"><b>Siguiente cilindro</b><small id="tiraTexto"></small></div>
@@ -404,7 +610,10 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
           <span id="estadoPH" class="estado oculto"></span>
         </div>
       </div>
+      </section>
 
+      <section class="bloque">
+      <p class="sec"><span>Estado</span><span class="tag ok" id="tgEst"></span></p>
       <div class="tarjeta">
         <div class="campo">
           <span class="etq">Válvula</span>
@@ -432,6 +641,7 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
           <textarea id="fObs" class="entrada" placeholder="Golpe leve en el cuello" autocapitalize="sentences"></textarea>
         </div>
       </div>
+      </section>
       <p class="ayuda" style="text-align:center" id="contadorHoy"></p>
     </main>
 
@@ -443,10 +653,12 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
         <input id="buscar" placeholder="Buscar serial" autocapitalize="characters" autocomplete="off" spellcheck="false">
         <button id="limpiarBuscar" class="oculto" aria-label="Borrar búsqueda"><svg class="i"><use href="#i-x"/></svg></button>
       </label>
-      <div id="filtroSede" class="scroll" role="group" aria-label="Sede"></div>
+      <p class="sec"><span>Sede</span></p>
+      <div id="filtroSede" class="seg" role="group" aria-label="Sede"></div>
       <div id="filtroProp" class="scroll" role="group" aria-label="Propietario"></div>
       <div id="resumen" class="resumen"></div>
       <div id="porGas" class="por-gas oculto"></div>
+      <p class="sec" id="secCil"><span>Cilindros</span></p>
       <div id="filtroEstado" class="scroll" role="group" aria-label="Filtro"></div>
       <div id="lista" class="lista"></div>
     </main>
@@ -463,15 +675,20 @@ button:active:not(:disabled),.btn:active{transform:scale(.98)}
 
     <nav class="nav" aria-label="Secciones">
       <div class="dentro">
-        <div class="marca"><img src="logo.jpg" alt=""><b>Inventario de cilindros</b></div>
-        <button id="navInventario" aria-current="page"><svg class="i"><use href="#i-lista"/></svg>Inventario<span id="puntoInventario" class="punto oculto"></span></button>
-        <button id="navLlenado"><svg class="i"><use href="#i-camion"/></svg>Llenado<span id="puntoLlenado" class="punto oculto"></span></button>
-        <button id="navRegistrar"><svg class="i"><use href="#i-registrar"/></svg>Registrar</button>
+        <div class="marca"><img src="logo-crc.png" alt=""><b>Inventario de cilindros</b></div>
+        <button id="navInventario" aria-current="page"><span class="pill"><svg class="i"><use href="#i-lista"/></svg></span>Inventario<span id="puntoInventario" class="punto oculto"></span></button>
+        <button id="navLlenado"><span class="pill"><svg class="i"><use href="#i-camion"/></svg></span>Llenado<span id="puntoLlenado" class="punto oculto"></span></button>
+        <button id="navRegistrar"><span class="pill"><svg class="i"><use href="#i-registrar"/></svg></span>Registrar</button>
       </div>
     </nav>
   </div>
 </div>
 <div id="toast" class="toast" aria-live="polite"></div>
+<div id="snack" class="snack" role="alert" aria-live="assertive">
+  <b><svg class="i"><use href="#i-alerta"/></svg><span id="snackTit">Falta completar</span></b>
+  <p id="snackTxt"></p>
+  <div class="sa"><button type="button" id="snackOk">Entendido</button><button type="button" id="snackIr">Ir ahí</button></div>
+</div>
 <div id="visor" class="visor oculto" role="dialog" aria-modal="true" aria-labelledby="visorTit">
   <div class="arriba"><span id="visorTit">Remisión</span><button id="visorCerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
   <div id="visorImg" class="img"></div>

@@ -9,7 +9,7 @@
  * VERSION para que los celulares renueven la copia.
  *****************************************************************/
 
-const VERSION = 'inv-cilindros-v18';
+const VERSION = 'inv-cilindros-v19';
 
 const ARCHIVOS = [
   './',
@@ -18,6 +18,7 @@ const ARCHIVOS = [
   'config.js',
   'manifest.webmanifest',
   'logo.jpg',
+  'logo-crc.png',
   'icon-192.png',
   'icon-512.png',
   'icon-maskable-512.png'
