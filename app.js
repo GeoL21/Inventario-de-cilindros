@@ -916,7 +916,7 @@ function pintarInventario() {
 }
 
 
-const GAS_COD = { 'oxigeno': ['O₂', ''], 'aire medicinal': ['Aire', 'ai'], 'aire': ['Aire', 'ai'], 'nitrogeno': ['N₂', 'n2'],
+const GAS_COD = { 'oxigeno': ['O₂', 'o2'], 'aire medicinal': ['Aire', 'ai'], 'aire': ['Aire', 'ai'], 'nitrogeno': ['N₂', 'n2'],
   'dioxicarbomed': ['CO₂', 'co'], 'dioxido de carbono': ['CO₂', 'co'], 'oxigeno portatil': ['O₂ P', 'op'] };
 function codigoGas(gas) {
   const k = normal(gas);
