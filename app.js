@@ -819,7 +819,7 @@ function pintarInventario() {
   $('filtroProp').innerHTML = [''].concat(props).map(function(p) {
     const n = todo.filter(function(c) { return esDeSede(c) && (!p || normal(c.propietario) === normal(p)); }).length;
     return '<button type="button" class="chip mini" data-prop="' + esc(p) + '" aria-pressed="' +
-      (normal(S.filtroProp) === normal(p)) + '">' + esc(p || 'Todos los propietarios') +
+      (normal(S.filtroProp) === normal(p)) + '">' + esc(p || 'Todos') +
       ' <span class="n">' + n + '</span></button>';
   }).join('');
 
