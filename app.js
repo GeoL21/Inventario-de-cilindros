@@ -897,7 +897,10 @@ function pintarInventario() {
     const gc = codigoGas(c.gas);
     const venc = c.vence || calcularVence(c.ph);
     const icPH = c.est === 'Vigente' ? ico('sello', 's sello') : ico(c.est === 'Vencida' ? 'alerta' : 'reloj', 's');
-    return '<div class="fila-c"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
+    // Color de la fila: rojo que late si algo venció (PH o gas), ámbar si algo está por vencer, blanco si todo bien
+    const nivel = (c.est === 'Vencida' || c.gasEst === 'Vencido') ? ' s-rojo'
+      : (c.est === 'Por vencer' || c.gasEst === 'Por vencer') ? ' s-alerta' : '';
+    return '<div class="fila-c' + nivel + '"><button type="button" class="fila" data-serial="' + esc(c.serial) + '">' +
       '<span class="gt ' + gc[1] + '">' + esc(gc[0]) + '</span>' +
       '<div class="txt"><b>' + esc(c.serial) + '</b><small>' +
       esc([c.gas, c.capacidad, c.propietario].filter(Boolean).join(' · ')) + '</small><small>' +

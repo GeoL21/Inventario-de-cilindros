@@ -559,6 +559,14 @@ textarea.entrada{font-weight:600}
 .dialogo h2{font-weight:800}
 .snack .sa button{font-weight:800}
 
+
+/* ---------- Colores por estado (17 nov 2026): blanco = normal, ámbar = atender, rojo que late = urgente ---------- */
+.fila-c,.lote{background:#fff;box-shadow:inset 0 0 0 1px var(--linea-suave)}
+.fila-c.s-alerta,.lote.e-alerta{background:#FFF3DC;box-shadow:none}
+.fila-c.s-rojo,.lote.e-rojo{background:#FCE4E1;box-shadow:none;animation:latidoUrg 2.4s ease-in-out infinite}
+.fila-c.s-rojo .estado.rojo,.fila-c.s-alerta .estado{background:#fff}
+@keyframes latidoUrg{0%,100%{background:#FCE4E1}50%{background:#F6C6C0}}
+@media (prefers-reduced-motion:reduce){.fila-c.s-rojo,.lote.e-rojo{animation:none}}
 </style>
 </head>
 <body>

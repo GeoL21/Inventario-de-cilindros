@@ -9,7 +9,7 @@
  * VERSION para que los celulares renueven la copia.
  *****************************************************************/
 
-const VERSION = 'inv-cilindros-v25';
+const VERSION = 'inv-cilindros-v26';
 
 const ARCHIVOS = [
   './',
